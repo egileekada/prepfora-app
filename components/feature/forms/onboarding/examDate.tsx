@@ -3,15 +3,13 @@
 import { CustomButton, CustomText } from "@/components/ui";
 import { FormikProvider } from "formik";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { FaCheckCircle } from "react-icons/fa";
 import { FormikProps } from "formik";
 import { IAuthUser } from "@/types/auth";
 
-export default function ExamDate({ formik, }: {
+export default function ExamDate({ formik }: {
     formik: FormikProps<IAuthUser>;
 }) {
-    const [selected, setSelected] = useState<string[]>([]);
     const router = useRouter();
 
     const option = [
@@ -32,14 +30,6 @@ export default function ExamDate({ formik, }: {
             value: "Not Sure"
         },
     ];
-
-    const toggleSelection = (value: string) => {
-        setSelected((prev) =>
-            prev.includes(value)
-                ? prev.filter((item) => item !== value)
-                : [...prev, value]
-        );
-    };
 
     const CustomBox = (
         {
@@ -75,14 +65,14 @@ export default function ExamDate({ formik, }: {
                             <CustomBox
                                 key={index}
                                 name={item.label}
-                                isActive={selected.includes(item.value)}
-                                onClick={() => toggleSelection(item.value)}
+                                isActive={formik.values?.current_examination_date === item.value}
+                                onClick={() => formik.setFieldValue("current_examination_date", item.value)}
                             />
                         );
                     })}
                 </div>
                 <div className=" flex flex-col gap-4 w-full " >
-                    <CustomButton fullWidth onClick={() => router.push("/onboarding?type=goals")} isDisabled={selected.length === 0} variant={selected.length > 0 ? "primary" : "disabled"} >Continue</CustomButton>
+                    <CustomButton fullWidth onClick={() => router.push("/onboarding?type=goals")} isDisabled={formik.values?.current_examination_date?.length === 0} variant={formik.values?.current_examination_date?.length > 0 ? "primary" : "disabled"} >Continue</CustomButton>
                 </div>
             </form>
         </FormikProvider>

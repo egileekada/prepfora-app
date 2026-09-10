@@ -29,7 +29,7 @@ export default function ProfileForm(
             <form className=" w-full p-6 flex flex-col gap-6 rounded-2xl bg-white ">
                 <FormikField placeholder="Jane" name="first_name" label="First Name*" />
                 <FormikField placeholder="Doe" name="last_name" label="Last Name*" />
-                {/* <FormikField placeholder="080XXXXXX" name="email" label="Phone Number*" /> */}
+                <FormikField placeholder="080XXXXXX" name="phone" label="Phone Number*" />
                 <FormikField as="select" options={stateOptions} placeholder="Lagos" name="state" label="State of Residence*" />
                 <FormikField as="select" options={universityOptions} placeholder="Obafemi Awolowo University" name="university" label="University of Interest*" />
                 <div className=" flex flex-col gap-4 w-full " >

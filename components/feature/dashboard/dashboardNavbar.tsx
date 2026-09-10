@@ -36,7 +36,7 @@ export default function DashboardNavbar() {
                 ))}
             </div>
             <div className=" absolute right-8 flex h-full justify-center gap-6 items-center " >
-                <CustomButton>Start Practicing</CustomButton>
+                <CustomButton>Continue Practicing</CustomButton>
                 <button className=" text-neutral-450 " >
                     <NotificationBing size={24} />
                 </button>

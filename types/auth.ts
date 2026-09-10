@@ -13,6 +13,8 @@ export interface IAuthUser {
     last_name: string,
     state: string,
     university: string,
+    phone: string,
+    current_examination_date: string,
     examinations: string[],
     current_expectation: string
 }

@@ -69,6 +69,10 @@ export default function OnboardingPage() {
         }
     })
 
+    console.log(formik.values);
+    console.log(formik.errors);
+
+
 
     return (
         <section className=" flex-1 flex py-6 flex-col justify-center items-center ">
@@ -81,7 +85,7 @@ export default function OnboardingPage() {
                 {!query && <ProfileForm formik={formik} stateOptions={stateOptions} universityOptions={universityOptions} />}
                 {query === "exam-type" && <ExamType formik={formik} />}
                 {query === "exam-date" && <ExamDate formik={formik} />}
-                {query === "goals" && <ExamGoal formik={formik} />}
+                {query === "goals" && <ExamGoal isLoading={isLoading} formik={formik} />}
                 {query === "your-goals" && <YourGoal isLoading={isLoading} formik={formik} />}
             </div>
         </section>

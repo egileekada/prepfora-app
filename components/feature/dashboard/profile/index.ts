@@ -1,0 +1,10 @@
+export { default as ProfileHeaderCard } from "./profileHeaderCard";
+export { default as WalletSection } from "./walletSection";
+export { default as PersonalInfoSection } from "./personalInfoSection";
+export { default as PreferencesSection } from "./preferencesSection";
+export { default as BadgesSection } from "./badgesSection";
+export { default as EditProfileModal } from "./modals/editProfileModal";
+export { default as UpdateGoalsModal } from "./modals/updateGoalsModal";
+export { default as ChangeEmailModal } from "./modals/changeEmailModal";
+export { default as GenericEditModal } from "./modals/genericEditModal";
+export * from "./profileTypes";

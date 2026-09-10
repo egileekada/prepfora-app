@@ -37,19 +37,19 @@ export default function Sidebar() {
             name: "Practice",
             link: "/dashboard/practice",
             icon: TrendUp,
-            disable: true
+            disable: false
         },
         {
             name: "Mock Exams",
-            link: "/dashboard/exams",
+            link: "/dashboard/mock-exams",
             icon: Monitor,
-            disable: true
+            disable: false
         },
         {
             name: "Performance",
-            link: "/dashboard/analytics",
-            icon: TrendUp,
-            disable: true
+            link: "/dashboard/performance",
+            icon: ChartSquare,
+            disable: false
         }
     ];
 
@@ -76,15 +76,32 @@ export default function Sidebar() {
                         );
                     })}
                 </div>
-                <div className=" p-4 w-full rounded-2xl bg-primary-350 flex items-center gap-4 mt-auto text-white ">
-                    <div className=" w-fit " >
-                        <div className=" border border-white rounded-full w-10 h-10 bg-white "></div>
+                <button
+                    type="button"
+                    onClick={() => push("/dashboard/profile")}
+                    className={`p-4 w-full rounded-2xl bg-primary-350 flex items-center gap-4 mt-auto text-white cursor-pointer hover:bg-primary-550 transition-colors text-left ${
+                        pathname === "/dashboard/profile" ? "ring-2 ring-white/50" : ""
+                    }`}
+                >
+                    <div className="w-fit">
+                        <div className="border border-white rounded-full w-10 h-10 bg-white overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="/images/landing/hero1.png"
+                                alt="Avatar"
+                                className="w-full h-full object-cover object-top"
+                            />
+                        </div>
                     </div>
                     <div>
-                        <CustomText type="body-lg">{data?.data?.first_name ? textLimit(`${data?.data?.first_name} ${data?.data?.last_name}`, 12) : "Guest"}</CustomText>
+                        <CustomText type="body-lg">
+                            {data?.data?.first_name
+                                ? textLimit(`${data?.data?.first_name} ${data?.data?.last_name}`, 12)
+                                : "Jane Doe"}
+                        </CustomText>
                         <CustomText type="body-sm">Current Badge</CustomText>
                     </div>
-                </div>
+                </button>
             </div>
         </div>
     );
