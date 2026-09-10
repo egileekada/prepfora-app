@@ -108,7 +108,6 @@ const useUser = () => {
                     return date.toISOString();
                 }
             };
-
             updateUser.mutate({
                 ...data,
                 current_examination_date: convertToDate()
