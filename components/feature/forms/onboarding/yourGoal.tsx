@@ -11,7 +11,7 @@ export default function YourGoal({ formik, isLoading }: {
     formik: FormikProps<IAuthUser>,
     isLoading: boolean
 }) {
-    const [selected, setSelected] = useState<string[]>([]);
+
     const router = useRouter();
 
     const option = [
@@ -32,14 +32,6 @@ export default function YourGoal({ formik, isLoading }: {
             value: "Improve my grades"
         },
     ];
-
-    const toggleSelection = (value: string) => {
-        setSelected((prev) =>
-            prev.includes(value)
-                ? prev.filter((item) => item !== value)
-                : [...prev, value]
-        );
-    };
 
     const CustomBox = (
         {
@@ -75,14 +67,14 @@ export default function YourGoal({ formik, isLoading }: {
                             <CustomBox
                                 key={index}
                                 name={item.label}
-                                isActive={selected.includes(item.value)}
-                                onClick={() => toggleSelection(item.value)}
+                                isActive={formik.values?.current_expectation.includes(item.value)}
+                                onClick={() => formik.setFieldValue("current_expectation", item.value)}
                             />
                         );
                     })}
                 </div>
                 <div className=" flex flex-col gap-4 w-full " >
-                    <CustomButton fullWidth loading={isLoading} disabled={selected.length === 0} type="submit" variant={selected.length > 0 ? "primary" : "disabled"} >Go to Dashboard</CustomButton>
+                    <CustomButton fullWidth loading={isLoading} disabled={formik.values?.current_expectation.length === 0} type="submit" variant={formik.values?.current_expectation.length > 0 ? "primary" : "disabled"} >Go to Dashboard</CustomButton>
                 </div>
             </form>
         </FormikProvider>

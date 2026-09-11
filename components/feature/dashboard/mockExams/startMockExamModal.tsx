@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ExamCurriculum } from "./mockExamTypes";
+import useExam from "@/hooks/exam/useExam";
 
 interface StartMockExamModalProps {
     isOpen: boolean;
@@ -11,16 +12,6 @@ interface StartMockExamModalProps {
 }
 
 const YEAR_OPTIONS = ["2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018"];
-const SUBJECT_OPTIONS = [
-    "Physics",
-    "Mathematics",
-    "English Language",
-    "Biology",
-    "Chemistry",
-    "Economics",
-    "Government",
-    "Literature in English",
-];
 
 export default function StartMockExamModal({
     isOpen,
@@ -37,6 +28,10 @@ export default function StartMockExamModal({
 
     const yearRef = useRef<HTMLDivElement>(null);
     const subjectRef = useRef<HTMLDivElement>(null);
+
+    const { useGetSubject } = useExam()
+
+    const { data } = useGetSubject()
 
     // Reset when opening
     useEffect(() => {
@@ -66,17 +61,17 @@ export default function StartMockExamModal({
 
     // WAEC and NECO require subject selection
     const requiresSubject =
-        curriculum.code === "WAEC" || curriculum.code === "NECO";
+        curriculum.code === "waec" || curriculum.code === "neco";
 
-    const modalTitle = `${curriculum.code} Mock Exam`;
+    const modalTitle = `${curriculum.code?.toUpperCase()} Mock Exam`;
 
     const handleContinue = () => {
         const yearVal = selectedYear || "2024";
         const subjectVal = requiresSubject
             ? selectedSubject || "Physics"
-            : curriculum.code === "JAMB"
-            ? "Mathematics"
-            : "English Language";
+            : curriculum.code === "jamb"
+                ? "Mathematics"
+                : "English Language";
 
         onClose();
         router.push(
@@ -177,9 +172,8 @@ export default function StartMockExamModal({
                                     strokeWidth="2"
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
-                                    className={`transition-transform duration-200 ${
-                                        isYearOpen ? "rotate-180" : ""
-                                    }`}
+                                    className={`transition-transform duration-200 ${isYearOpen ? "rotate-180" : ""
+                                        }`}
                                 >
                                     <polyline points="6 9 12 15 18 9" />
                                 </svg>
@@ -196,11 +190,10 @@ export default function StartMockExamModal({
                                             setSelectedYear(y);
                                             setIsYearOpen(false);
                                         }}
-                                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                            selectedYear === y
-                                                ? "bg-primary-50 text-primary-300 font-semibold"
-                                                : "text-neutral-700 hover:bg-neutral-50"
-                                        }`}
+                                        className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedYear === y
+                                            ? "bg-primary-50 text-primary-300 font-semibold"
+                                            : "text-neutral-700 hover:bg-neutral-50"
+                                            }`}
                                     >
                                         {y}
                                     </button>
@@ -234,9 +227,8 @@ export default function StartMockExamModal({
                                         strokeWidth="2"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        className={`transition-transform duration-200 ${
-                                            isSubjectOpen ? "rotate-180" : ""
-                                        }`}
+                                        className={`transition-transform duration-200 ${isSubjectOpen ? "rotate-180" : ""
+                                            }`}
                                     >
                                         <polyline points="6 9 12 15 18 9" />
                                     </svg>
@@ -245,21 +237,20 @@ export default function StartMockExamModal({
 
                             {isSubjectOpen && (
                                 <div className="absolute top-[72px] left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-48 overflow-y-auto py-1 z-30">
-                                    {SUBJECT_OPTIONS.map((sub) => (
+                                    {data?.data?.subjects.map((sub, index) => (
                                         <button
-                                            key={sub}
+                                            key={index}
                                             type="button"
                                             onClick={() => {
-                                                setSelectedSubject(sub);
+                                                setSelectedSubject(sub.name);
                                                 setIsSubjectOpen(false);
                                             }}
-                                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                                                selectedSubject === sub
-                                                    ? "bg-primary-50 text-primary-300 font-semibold"
-                                                    : "text-neutral-700 hover:bg-neutral-50"
-                                            }`}
+                                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${selectedSubject === sub.name
+                                                ? "bg-primary-50 text-primary-300 font-semibold"
+                                                : "text-neutral-700 hover:bg-neutral-50"
+                                                }`}
                                         >
-                                            {sub}
+                                            {sub.displayName}
                                         </button>
                                     ))}
                                 </div>
