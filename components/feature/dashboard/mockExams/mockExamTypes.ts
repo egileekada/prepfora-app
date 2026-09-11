@@ -1,4 +1,4 @@
-export type ExamCurriculumCode = "JAMB" | "WAEC" | "POST UTME" | "NECO";
+export type ExamCurriculumCode = "jamb" | "waec" | "post_utme" | "neco";
 
 export interface ExamCurriculum {
     id: string;
@@ -52,7 +52,7 @@ export interface ExamAnalysisData {
 export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     {
         id: "jamb",
-        code: "JAMB",
+        code: "jamb",
         title: "JAMB",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Best Score",
@@ -64,7 +64,7 @@ export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     },
     {
         id: "waec",
-        code: "WAEC",
+        code: "waec",
         title: "WAEC",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Average Grade",
@@ -75,7 +75,7 @@ export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     },
     {
         id: "post-utme",
-        code: "POST UTME",
+        code: "post_utme",
         title: "POST UTME",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Best Score",
@@ -87,7 +87,7 @@ export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     },
     {
         id: "neco",
-        code: "NECO",
+        code: "neco",
         title: "NECO",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Average Grade",
@@ -105,7 +105,7 @@ export const MOCK_HISTORY: ExamHistoryItem[] = [
         date: "June 24, 2026",
         score: "284",
         scoreColor: "green",
-        examCode: "JAMB",
+        examCode: "jamb",
     },
     {
         id: "hist-2",
@@ -113,7 +113,7 @@ export const MOCK_HISTORY: ExamHistoryItem[] = [
         date: "June 8, 2026",
         score: "A1",
         scoreColor: "green",
-        examCode: "WAEC",
+        examCode: "waec",
     },
     {
         id: "hist-3",
@@ -121,13 +121,13 @@ export const MOCK_HISTORY: ExamHistoryItem[] = [
         date: "May 20, 2026",
         score: "D",
         scoreColor: "red",
-        examCode: "NECO",
+        examCode: "neco",
     },
 ];
 
 export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = {
-    JAMB: {
-        examCode: "JAMB",
+    jamb: {
+        examCode: "jamb",
         examTitle: "JAMB Mock Exam Analysis",
         totalScore: 288,
         maxScore: 400,
@@ -189,8 +189,8 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
             },
         ],
     },
-    WAEC: {
-        examCode: "WAEC",
+    waec: {
+        examCode: "waec",
         examTitle: "WAEC Mock Exam Analysis",
         totalScore: 78,
         maxScore: 100,
@@ -235,8 +235,8 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
             },
         ],
     },
-    NECO: {
-        examCode: "NECO",
+    neco: {
+        examCode: "neco",
         examTitle: "NECO Mock Exam Analysis",
         totalScore: 65,
         maxScore: 100,
@@ -269,8 +269,8 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
             },
         ],
     },
-    "POST UTME": {
-        examCode: "POST UTME",
+    "post_utme": {
+        examCode: "post_utme",
         examTitle: "POST UTME Mock Exam Analysis",
         totalScore: 260,
         maxScore: 400,
