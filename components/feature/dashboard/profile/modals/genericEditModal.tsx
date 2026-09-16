@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
+import { FormikField } from "@/components/ui";
+import { FormikProvider, useFormik } from "formik";
+import * as Yup from "yup";
 
 interface GenericEditModalProps {
     isOpen: boolean;
@@ -8,6 +11,10 @@ interface GenericEditModalProps {
     title: string;
     label: string;
     initialValue: string;
+    as?: "input" | "select" | "textarea";
+    options?: { label: string; value: string }[];
+    multiple?: boolean;
+    isLoading?: boolean;
     onUpdate: (value: string) => void;
 }
 
@@ -17,21 +24,37 @@ export default function GenericEditModal({
     title,
     label,
     initialValue,
+    as = "input",
+    options = [],
+    multiple = false,
+    isLoading = false,
     onUpdate,
 }: GenericEditModalProps) {
-    const [value, setValue] = useState(initialValue);
+    const formik = useFormik({
+        initialValues: {
+            value: initialValue || "",
+        },
+        enableReinitialize: true,
+        validationSchema: Yup.object({
+            value: Yup.string().required(`${label} is required`),
+        }),
+        onSubmit: (values) => {
+            onUpdate(values.value);
+            onClose();
+        },
+    });
 
     useEffect(() => {
-        setValue(initialValue);
-    }, [initialValue, isOpen]);
+        if (isOpen) {
+            formik.resetForm({
+                values: {
+                    value: initialValue || "",
+                },
+            });
+        }
+    }, [isOpen, initialValue]);
 
     if (!isOpen) return null;
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onUpdate(value.trim() || initialValue);
-        onClose();
-    };
 
     return (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
@@ -55,28 +78,28 @@ export default function GenericEditModal({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold text-neutral-800">
-                            {label} *
-                        </label>
-                        <input
-                            type="text"
-                            value={value}
-                            onChange={(e) => setValue(e.target.value)}
-                            required
-                            className="w-full h-12 px-4 border border-neutral-300 rounded-2xl text-sm font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                <FormikProvider value={formik}>
+                    <form onSubmit={formik.handleSubmit} className="flex flex-col gap-4">
+                        <FormikField
+                            name="value"
+                            label={`${label} *`}
+                            placeholder={`Enter ${label.toLowerCase()}`}
+                            as={as}
+                            options={options}
+                            multiple={multiple}
                         />
-                    </div>
 
-                    <button
-                        type="submit"
-                        className="w-full h-12 mt-2 bg-[#2563EB] hover:bg-blue-700 text-white font-semibold text-sm rounded-2xl transition-colors cursor-pointer shadow-xs"
-                    >
-                        Update
-                    </button>
-                </form>
+                        <button
+                            type="submit"
+                            disabled={isLoading || formik.isSubmitting}
+                            className="w-full h-12 mt-2 bg-[#2563EB] hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold text-sm rounded-2xl transition-colors cursor-pointer shadow-xs flex items-center justify-center"
+                        >
+                            {isLoading || formik.isSubmitting ? "Updating..." : "Update"}
+                        </button>
+                    </form>
+                </FormikProvider>
             </div>
         </div>
     );
 }
+

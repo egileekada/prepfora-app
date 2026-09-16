@@ -1,11 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { SubjectCardData } from "./practiceSubjectCard";
+import useExam from "@/hooks/exam/useExam";
 
 export interface PracticeConfig {
     subject: SubjectCardData | null;
+    subjectName: string;
+    subjectDisplayName: string;
+    examType: string;
+    year: string;
     school: string;
     questionCount: number;
     time: {
@@ -18,11 +23,12 @@ export interface PracticeConfig {
 interface StartPracticeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    subject: SubjectCardData | null;
+    subject?: SubjectCardData | null;
+    initialExamType?: string;
     onStartPractice?: (config: PracticeConfig) => void;
 }
 
-type ModalStep = "school" | "questions" | "time" | "summary";
+type ModalStep = "subject" | "school" | "questions" | "time" | "summary";
 
 const SCHOOL_OPTIONS = [
     "Obafemi Awolowo University",
@@ -37,46 +43,138 @@ const SCHOOL_OPTIONS = [
     "University of Ilorin",
 ];
 
-const QUESTION_OPTIONS = [20, 50, 100];
+const EXAM_TYPE_OPTIONS = ["UTME", "WAEC", "NECO", "POST-UTME"];
+const YEAR_OPTIONS = ["2024", "2023", "2022", "2021", "2020", "2019", "2018"];
+const QUESTION_OPTIONS = [10, 20, 30, 50];
 
 export default function StartPracticeModal({
     isOpen,
     onClose,
-    subject,
+    subject: propSubject = null,
+    initialExamType,
     onStartPractice,
 }: StartPracticeModalProps) {
     const router = useRouter();
-    const [step, setStep] = useState<ModalStep>("school");
-    const [selectedSchool, setSelectedSchool] = useState("Obafemi Awolowo University");
-    const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = useState(false);
+    const { useGetSubject } = useExam();
+    const { data: subjectsData, isLoading: isSubjectsLoading } = useGetSubject();
+
+    const [step, setStep] = useState<ModalStep>("subject");
+
+    // Form states
+    const [selectedSubjectName, setSelectedSubjectName] = useState<string>("english");
+    const [selectedSubjectDisplayName, setSelectedSubjectDisplayName] = useState<string>("English Language");
+    const [selectedExamType, setSelectedExamType] = useState<string>("UTME");
+    const [selectedYear, setSelectedYear] = useState<string>("2020");
+    const [selectedSchool, setSelectedSchool] = useState<string>("Obafemi Awolowo University");
     const [questionCount, setQuestionCount] = useState<number>(20);
     const [hours, setHours] = useState<number>(0);
     const [minutes, setMinutes] = useState<number>(20);
     const [seconds, setSeconds] = useState<number>(0);
-    const [started, setStarted] = useState(false);
+    const [started, setStarted] = useState<boolean>(false);
 
+    // Dropdown open states
+    const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
+    const [isExamTypeDropdownOpen, setIsExamTypeDropdownOpen] = useState(false);
+    const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
+    const [isSchoolDropdownOpen, setIsSchoolDropdownOpen] = useState(false);
+
+    const subjectDropdownRef = useRef<HTMLDivElement>(null);
+    const examTypeDropdownRef = useRef<HTMLDivElement>(null);
+    const yearDropdownRef = useRef<HTMLDivElement>(null);
     const schoolDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Reset state when opening modal
+    // Subjects list from backend response
+    const subjectsList = useMemo(() => {
+        return subjectsData?.data?.subjects || [];
+    }, [subjectsData]);
+
+    // Synchronize initial selection when modal opens or propSubject changes
     useEffect(() => {
         if (isOpen) {
-            setStep("school");
+            setStep("subject");
             setQuestionCount(20);
             setHours(0);
             setMinutes(20);
             setSeconds(0);
+            setIsSubjectDropdownOpen(false);
+            setIsExamTypeDropdownOpen(false);
+            setIsYearDropdownOpen(false);
             setIsSchoolDropdownOpen(false);
             setStarted(false);
-        }
-    }, [isOpen]);
 
-    // Close school dropdown on outside click
+            if (propSubject?.name) {
+                const cleanName = propSubject.name.trim().toLowerCase();
+                const matched = subjectsList.find(
+                    (s) =>
+                        s.name.toLowerCase() === cleanName ||
+                        s.displayName.toLowerCase() === cleanName
+                );
+                if (matched) {
+                    setSelectedSubjectName(matched.name);
+                    setSelectedSubjectDisplayName(matched.displayName);
+                } else {
+                    const slug = cleanName.includes("math")
+                        ? "mathematics"
+                        : cleanName.includes("eng")
+                            ? "english"
+                            : cleanName.includes("bio")
+                                ? "biology"
+                                : cleanName.includes("phy")
+                                    ? "physics"
+                                    : cleanName.includes("chem")
+                                        ? "chemistry"
+                                        : cleanName;
+                    setSelectedSubjectName(slug);
+                    setSelectedSubjectDisplayName(propSubject.name);
+                }
+
+                if (propSubject.exam) {
+                    const matchedExam = EXAM_TYPE_OPTIONS.find(
+                        (e) => e.toLowerCase() === propSubject.exam?.toLowerCase()
+                    );
+                    if (matchedExam) setSelectedExamType(matchedExam);
+                } else if (initialExamType) {
+                    const cleanInit = initialExamType.toLowerCase();
+                    const matchedExam = EXAM_TYPE_OPTIONS.find(
+                        (e) =>
+                            e.toLowerCase() === cleanInit ||
+                            (cleanInit === "jamb" && e.toLowerCase() === "utme") ||
+                            (cleanInit.includes("post") && e.toLowerCase().includes("post"))
+                    );
+                    if (matchedExam) setSelectedExamType(matchedExam);
+                }
+            } else if (subjectsList.length > 0) {
+                setSelectedSubjectName(subjectsList[0].name);
+                setSelectedSubjectDisplayName(subjectsList[0].displayName);
+
+                if (initialExamType) {
+                    const cleanInit = initialExamType.toLowerCase();
+                    const matchedExam = EXAM_TYPE_OPTIONS.find(
+                        (e) =>
+                            e.toLowerCase() === cleanInit ||
+                            (cleanInit === "jamb" && e.toLowerCase() === "utme") ||
+                            (cleanInit.includes("post") && e.toLowerCase().includes("post"))
+                    );
+                    if (matchedExam) setSelectedExamType(matchedExam);
+                }
+            }
+        }
+    }, [isOpen, propSubject, initialExamType, subjectsList]);
+
+    // Close dropdowns on click outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
-            if (
-                schoolDropdownRef.current &&
-                !schoolDropdownRef.current.contains(event.target as Node)
-            ) {
+            const target = event.target as Node;
+            if (subjectDropdownRef.current && !subjectDropdownRef.current.contains(target)) {
+                setIsSubjectDropdownOpen(false);
+            }
+            if (examTypeDropdownRef.current && !examTypeDropdownRef.current.contains(target)) {
+                setIsExamTypeDropdownOpen(false);
+            }
+            if (yearDropdownRef.current && !yearDropdownRef.current.contains(target)) {
+                setIsYearDropdownOpen(false);
+            }
+            if (schoolDropdownRef.current && !schoolDropdownRef.current.contains(target)) {
                 setIsSchoolDropdownOpen(false);
             }
         }
@@ -86,11 +184,13 @@ export default function StartPracticeModal({
 
     if (!isOpen) return null;
 
-    const subjectTitle = subject ? `${subject.name} Practice` : "English Language Practice";
+    const subjectTitle = `${selectedSubjectDisplayName} Practice`;
 
     const handleBack = () => {
-        if (step === "school") {
+        if (step === "subject") {
             onClose();
+        } else if (step === "school") {
+            setStep("subject");
         } else if (step === "questions") {
             setStep("school");
         } else if (step === "time") {
@@ -101,34 +201,58 @@ export default function StartPracticeModal({
     };
 
     const handleContinue = () => {
-        if (step === "school") {
+        if (step === "subject") {
+            setStep("school");
+        } else if (step === "school") {
             setStep("questions");
         } else if (step === "questions") {
-            // Set default time based on questions if untouched
-            if (questionCount === 20) {
+            // Adjust default recommended practice time if user has not customized yet
+            if (questionCount === 10) {
+                setHours(0);
+                setMinutes(10);
+            } else if (questionCount === 20) {
+                setHours(0);
                 setMinutes(20);
+            } else if (questionCount === 30) {
+                setHours(0);
+                setMinutes(30);
             } else if (questionCount === 50) {
+                setHours(0);
                 setMinutes(50);
-            } else if (questionCount === 100) {
-                setHours(1);
-                setMinutes(40);
             }
             setStep("time");
         } else if (step === "time") {
             setStep("summary");
         } else if (step === "summary") {
             setStarted(true);
-            onStartPractice?.({
-                subject,
+            const practiceConfig: PracticeConfig = {
+                subject: propSubject,
+                subjectName: selectedSubjectName,
+                subjectDisplayName: selectedSubjectDisplayName,
+                examType: selectedExamType,
+                year: selectedYear,
                 school: selectedSchool,
                 questionCount,
                 time: { hours, minutes, seconds },
-            });
+            };
+
+            onStartPractice?.(practiceConfig);
+
             setTimeout(() => {
                 onClose();
-                const subjQuery = encodeURIComponent(subject?.name || "English Language");
-                router.push(`/exams?subject=${subjQuery}`);
-            }, 600);
+                const params = new URLSearchParams({
+                    subject: selectedSubjectName,
+                    subjectTitle: selectedSubjectDisplayName,
+                    type: selectedExamType.toLowerCase(),
+                    year: selectedYear,
+                    limit: String(questionCount),
+                    school: selectedSchool,
+                    hours: String(hours),
+                    minutes: String(minutes),
+                    seconds: String(seconds),
+                });
+                router.push(`/exams?${params.toString()}`);
+            }, 500);
         }
     };
 
@@ -141,10 +265,10 @@ export default function StartPracticeModal({
 
     const { hStr, mStr, sStr } = formatTimeDisplay();
 
-    // Summary time text
-    const summaryTimeText = hours > 0
-        ? `${hours} hr${hours > 1 ? "s" : ""} ${minutes > 0 ? `${minutes} mins` : ""}`
-        : `${minutes} mins`;
+    const summaryTimeText =
+        hours > 0
+            ? `${hours} hr${hours > 1 ? "s" : ""} ${minutes > 0 ? `${minutes} mins` : ""}`
+            : `${minutes} mins`;
 
     return (
         <div
@@ -153,9 +277,9 @@ export default function StartPracticeModal({
                 if (e.target === e.currentTarget) onClose();
             }}
         >
-            <div className="bg-white rounded-3xl w-full max-w-[480px] p-7 sm:p-8 shadow-2xl relative flex flex-col transition-all">
+            <div className="bg-white rounded-3xl w-full max-w-[490px] p-7 sm:p-8 shadow-2xl relative flex flex-col transition-all">
                 {/* Header Bar */}
-                <div className="flex items-center justify-between mb-6 pb-2">
+                <div className="flex items-center justify-between mb-6 pb-2 border-b border-neutral-100">
                     {/* Back button & Subject Practice Title */}
                     <div className="flex items-center gap-3">
                         <button
@@ -181,7 +305,7 @@ export default function StartPracticeModal({
                             <span>Back</span>
                         </button>
 
-                        <span className="text-sm font-semibold text-[#047857]">
+                        <span className="text-sm font-semibold text-[#047857] truncate max-w-[240px]">
                             {subjectTitle}
                         </span>
                     </div>
@@ -209,12 +333,211 @@ export default function StartPracticeModal({
                     </button>
                 </div>
 
-                {/* Step 1: Choose your school */}
+                {/* Step 1: Choose Subject & Exam Type */}
+                {step === "subject" && (
+                    <div className="flex flex-col gap-5">
+                        <div>
+                            <h2 className="text-xl font-bold text-neutral-900">
+                                Practice Details
+                            </h2>
+                            <p className="text-xs text-neutral-500 mt-1">
+                                Choose your subject, exam category, and examination year
+                            </p>
+                        </div>
+
+                        {/* Subject Select Dropdown */}
+                        <div className="flex flex-col gap-1.5 relative" ref={subjectDropdownRef}>
+                            <label className="text-xs font-semibold text-neutral-700">
+                                Select Subject *
+                            </label>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsSubjectDropdownOpen((prev) => !prev)}
+                                className="w-full h-12 px-4 bg-white border border-neutral-300 rounded-xl text-sm font-medium text-neutral-800 hover:border-neutral-400 flex items-center justify-between text-left transition-colors cursor-pointer shadow-xs"
+                            >
+                                <span className="truncate">
+                                    {isSubjectsLoading
+                                        ? "Loading subjects..."
+                                        : selectedSubjectDisplayName}
+                                </span>
+                                <div className="w-6 h-6 rounded-full border border-neutral-300 flex items-center justify-center flex-shrink-0 text-neutral-500">
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className={`transition-transform duration-200 ${isSubjectDropdownOpen ? "rotate-180" : ""
+                                            }`}
+                                    >
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </div>
+                            </button>
+
+                            {/* Dropdown Options */}
+                            {isSubjectDropdownOpen && (
+                                <div className="absolute top-[72px] left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-56 overflow-y-auto py-1.5 z-40">
+                                    {subjectsList.length > 0 ? (
+                                        subjectsList.map((sub) => (
+                                            <button
+                                                key={sub.name}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedSubjectName(sub.name);
+                                                    setSelectedSubjectDisplayName(sub.displayName);
+                                                    setIsSubjectDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors ${selectedSubjectName === sub.name
+                                                    ? "bg-primary-50 text-primary-300 font-semibold"
+                                                    : "text-neutral-700 hover:bg-neutral-50"
+                                                    }`}
+                                            >
+                                                <span className="truncate">{sub.displayName}</span>
+                                                <span className="text-[11px] uppercase tracking-wider text-neutral-400 ml-2">
+                                                    {sub.code || sub.category}
+                                                </span>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-3 text-xs text-neutral-500 text-center">
+                                            No subjects found
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Exam Type & Year Grid */}
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Exam Type Select */}
+                            <div className="flex flex-col gap-1.5 relative" ref={examTypeDropdownRef}>
+                                <label className="text-xs font-semibold text-neutral-700">
+                                    Exam Type *
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExamTypeDropdownOpen((prev) => !prev)}
+                                    className="w-full h-11 px-3 bg-white border border-neutral-300 rounded-xl text-xs sm:text-sm font-medium text-neutral-800 hover:border-neutral-400 flex items-center justify-between text-left transition-colors cursor-pointer shadow-xs"
+                                >
+                                    <span className="truncate">{selectedExamType}</span>
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className={`text-neutral-500 transition-transform duration-200 ${isExamTypeDropdownOpen ? "rotate-180" : ""
+                                            }`}
+                                    >
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </button>
+
+                                {isExamTypeDropdownOpen && (
+                                    <div className="absolute top-[68px] left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-48 overflow-y-auto py-1 z-30">
+                                        {EXAM_TYPE_OPTIONS.map((exam) => (
+                                            <button
+                                                key={exam}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedExamType(exam);
+                                                    setIsExamTypeDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-xs sm:text-sm transition-colors ${selectedExamType === exam
+                                                    ? "bg-primary-50 text-primary-300 font-semibold"
+                                                    : "text-neutral-700 hover:bg-neutral-50"
+                                                    }`}
+                                            >
+                                                {exam}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Year Select */}
+                            <div className="flex flex-col gap-1.5 relative" ref={yearDropdownRef}>
+                                <label className="text-xs font-semibold text-neutral-700">
+                                    Exam Year *
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsYearDropdownOpen((prev) => !prev)}
+                                    className="w-full h-11 px-3 bg-white border border-neutral-300 rounded-xl text-xs sm:text-sm font-medium text-neutral-800 hover:border-neutral-400 flex items-center justify-between text-left transition-colors cursor-pointer shadow-xs"
+                                >
+                                    <span className="truncate">{selectedYear}</span>
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className={`text-neutral-500 transition-transform duration-200 ${isYearDropdownOpen ? "rotate-180" : ""
+                                            }`}
+                                    >
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </button>
+
+                                {isYearDropdownOpen && (
+                                    <div className="absolute top-[68px] left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-48 overflow-y-auto py-1 z-30">
+                                        {Array.from({ length: 40 }).map((_, index) => {
+                                            const year = (2024 - index).toString();
+                                            return (
+                                                <button
+                                                    key={index}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedYear(year);
+                                                        setIsYearDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full text-left px-3 py-2 text-xs sm:text-sm transition-colors ${selectedYear === year
+                                                        ? "bg-primary-50 text-primary-300 font-semibold"
+                                                        : "text-neutral-700 hover:bg-neutral-50"
+                                                        }`}
+                                                >
+                                                    {year}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Continue Button */}
+                        <button
+                            type="button"
+                            onClick={handleContinue}
+                            className="w-full h-12 mt-2 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs"
+                        >
+                            Continue
+                        </button>
+                    </div>
+                )}
+
+                {/* Step 2: Choose your school */}
                 {step === "school" && (
                     <div className="flex flex-col gap-6">
-                        <h2 className="text-xl font-bold text-neutral-900">
-                            Choose your school
-                        </h2>
+                        <div>
+                            <h2 className="text-xl font-bold text-neutral-900">
+                                Choose your school
+                            </h2>
+                            <p className="text-xs text-neutral-500 mt-1">
+                                Select your target university or tertiary institution
+                            </p>
+                        </div>
 
                         <div className="flex flex-col gap-2 relative" ref={schoolDropdownRef}>
                             <label className="text-xs font-semibold text-neutral-700">
@@ -237,9 +560,8 @@ export default function StartPracticeModal({
                                         strokeWidth="2"
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
-                                        className={`transition-transform duration-200 ${
-                                            isSchoolDropdownOpen ? "rotate-180" : ""
-                                        }`}
+                                        className={`transition-transform duration-200 ${isSchoolDropdownOpen ? "rotate-180" : ""
+                                            }`}
                                     >
                                         <polyline points="6 9 12 15 18 9" />
                                     </svg>
@@ -257,11 +579,10 @@ export default function StartPracticeModal({
                                                 setSelectedSchool(school);
                                                 setIsSchoolDropdownOpen(false);
                                             }}
-                                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                                selectedSchool === school
-                                                    ? "bg-primary-50 text-primary-300 font-semibold"
-                                                    : "text-neutral-700 hover:bg-neutral-50"
-                                            }`}
+                                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedSchool === school
+                                                ? "bg-primary-50 text-primary-300 font-semibold"
+                                                : "text-neutral-700 hover:bg-neutral-50"
+                                                }`}
                                         >
                                             {school}
                                         </button>
@@ -281,12 +602,17 @@ export default function StartPracticeModal({
                     </div>
                 )}
 
-                {/* Step 2: Preferred Number of Questions */}
+                {/* Step 3: Preferred Number of Questions */}
                 {step === "questions" && (
                     <div className="flex flex-col gap-6">
-                        <h2 className="text-xl font-bold text-neutral-900">
-                            Preferred Number of Questions
-                        </h2>
+                        <div>
+                            <h2 className="text-xl font-bold text-neutral-900">
+                                Preferred Number of Questions
+                            </h2>
+                            <p className="text-xs text-neutral-500 mt-1">
+                                Choose how many questions you want to practice
+                            </p>
+                        </div>
 
                         <div className="flex flex-col gap-3">
                             {QUESTION_OPTIONS.map((count) => {
@@ -296,13 +622,15 @@ export default function StartPracticeModal({
                                         key={count}
                                         type="button"
                                         onClick={() => setQuestionCount(count)}
-                                        className={`w-full h-13 px-4 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer ${
-                                            isSelected
-                                                ? "bg-[#E8FAF3] border-[#52C498] text-neutral-900 font-semibold"
-                                                : "bg-white border-neutral-200 text-neutral-800 font-medium hover:border-neutral-300"
-                                        }`}
+                                        className={`w-full h-13 px-4 rounded-xl border flex items-center justify-between text-left transition-all cursor-pointer ${isSelected
+                                            ? "bg-[#E8FAF3] border-[#52C498] text-neutral-900 font-semibold"
+                                            : "bg-white border-neutral-200 text-neutral-800 font-medium hover:border-neutral-300"
+                                            }`}
                                     >
-                                        <span className="text-base">{count}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-base font-semibold">{count}</span>
+                                            <span className="text-xs text-neutral-500">questions</span>
+                                        </div>
 
                                         {isSelected && (
                                             <div className="w-6 h-6 rounded-full bg-[#10B981] flex items-center justify-center text-white flex-shrink-0">
@@ -336,7 +664,7 @@ export default function StartPracticeModal({
                     </div>
                 )}
 
-                {/* Step 3: Set Time */}
+                {/* Step 4: Set Time */}
                 {step === "time" && (
                     <div className="flex flex-col gap-4">
                         <h2 className="text-xl font-bold text-neutral-900">
@@ -362,7 +690,7 @@ export default function StartPracticeModal({
                                     <button
                                         type="button"
                                         onClick={() => setHours((h) => Math.max(0, h - 1))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600"
+                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
                                         title="Decrease hours"
                                     >
                                         -
@@ -370,7 +698,7 @@ export default function StartPracticeModal({
                                     <button
                                         type="button"
                                         onClick={() => setHours((h) => Math.min(12, h + 1))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600"
+                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
                                         title="Increase hours"
                                     >
                                         +
@@ -396,7 +724,7 @@ export default function StartPracticeModal({
                                     <button
                                         type="button"
                                         onClick={() => setMinutes((m) => Math.max(5, m - 5))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600"
+                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
                                         title="Decrease minutes"
                                     >
                                         -
@@ -404,7 +732,7 @@ export default function StartPracticeModal({
                                     <button
                                         type="button"
                                         onClick={() => setMinutes((m) => Math.min(59, m + 5))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600"
+                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
                                         title="Increase minutes"
                                     >
                                         +
@@ -430,7 +758,7 @@ export default function StartPracticeModal({
                                     <button
                                         type="button"
                                         onClick={() => setSeconds((s) => (s >= 15 ? s - 15 : 0))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600"
+                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
                                         title="Decrease seconds"
                                     >
                                         -
@@ -438,7 +766,7 @@ export default function StartPracticeModal({
                                     <button
                                         type="button"
                                         onClick={() => setSeconds((s) => (s <= 45 ? s + 15 : 0))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600"
+                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
                                         title="Increase seconds"
                                     >
                                         +
@@ -458,30 +786,37 @@ export default function StartPracticeModal({
                     </div>
                 )}
 
-                {/* Step 4: Summary */}
+                {/* Step 5: Summary */}
                 {step === "summary" && (
                     <div className="flex flex-col gap-5">
                         <h2 className="text-xl font-bold text-neutral-900">
                             Summary
                         </h2>
 
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <p className="text-sm font-medium text-neutral-600 mb-1">
-                                    Preferred Number of Questions
-                                </p>
-                                <p className="text-base font-bold text-neutral-900">
-                                    {questionCount}
-                                </p>
+                        <div className="flex flex-col gap-3.5 bg-neutral-50 p-4 rounded-2xl border border-neutral-150">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-500 font-medium">Subject</span>
+                                <span className="text-neutral-900 font-bold">{selectedSubjectDisplayName}</span>
                             </div>
 
-                            <div>
-                                <p className="text-sm font-medium text-neutral-600 mb-1">
-                                    Time Set
-                                </p>
-                                <p className="text-base font-bold text-neutral-900">
-                                    {summaryTimeText}
-                                </p>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-500 font-medium">Exam Type & Year</span>
+                                <span className="text-neutral-900 font-bold">{selectedExamType} ({selectedYear})</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-500 font-medium">School / Institution</span>
+                                <span className="text-neutral-900 font-bold truncate max-w-[200px]">{selectedSchool}</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-500 font-medium">Questions</span>
+                                <span className="text-neutral-900 font-bold">{questionCount} questions</span>
+                            </div>
+
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-neutral-500 font-medium">Time Limit</span>
+                                <span className="text-neutral-900 font-bold">{summaryTimeText}</span>
                             </div>
                         </div>
 
@@ -490,7 +825,7 @@ export default function StartPracticeModal({
                             type="button"
                             onClick={handleContinue}
                             disabled={started}
-                            className="w-full h-12 mt-4 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs disabled:opacity-75"
+                            className="w-full h-12 mt-2 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs disabled:opacity-75"
                         >
                             {started ? "Starting Practice Session..." : "Start Practicing"}
                         </button>

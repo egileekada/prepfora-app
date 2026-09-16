@@ -5,59 +5,54 @@ import { FormikField } from "@/components/ui";
 import { FormikProvider, useFormik } from "formik";
 import * as Yup from "yup";
 
-interface EditProfileModalProps {
+interface EditPersonalInfoModalProps {
     isOpen: boolean;
     onClose: () => void;
-    initialFirstName: string;
-    initialLastName: string;
-    initialPhone?: string;
-    initialState?: string;
-    initialUniversity?: string;
+    initialEmail: string;
+    initialPhone: string;
+    initialState: string;
+    initialUniversity: string;
     stateOptions?: { label: string; value: string }[];
     universityOptions?: { label: string; value: string }[];
-    avatarUrl?: string;
     isLoading?: boolean;
     onUpdate: (data: {
-        first_name: string;
-        last_name: string;
         phone?: string;
         state?: string;
         university?: string;
     }) => void;
 }
 
-export default function EditProfileModal({
+export default function EditPersonalInfoModal({
     isOpen,
     onClose,
-    initialFirstName,
-    initialLastName,
+    initialEmail,
     initialPhone = "",
     initialState = "",
     initialUniversity = "",
     stateOptions = [],
     universityOptions = [],
-    avatarUrl = "/images/landing/hero1.png",
     isLoading = false,
     onUpdate,
-}: EditProfileModalProps) {
+}: EditPersonalInfoModalProps) {
     const formik = useFormik({
         initialValues: {
-            first_name: initialFirstName || "",
-            last_name: initialLastName || "",
+            email: initialEmail || "",
             phone: initialPhone || "",
             state: initialState || "",
             university: initialUniversity || "",
         },
         enableReinitialize: true,
         validationSchema: Yup.object({
-            first_name: Yup.string().required("First name is required"),
-            last_name: Yup.string().required("Last name is required"),
             phone: Yup.string(),
             state: Yup.string(),
             university: Yup.string(),
         }),
         onSubmit: (values) => {
-            onUpdate(values);
+            onUpdate({
+                phone: values.phone,
+                state: values.state,
+                university: values.university,
+            });
             onClose();
         },
     });
@@ -66,15 +61,14 @@ export default function EditProfileModal({
         if (isOpen) {
             formik.resetForm({
                 values: {
-                    first_name: initialFirstName || "",
-                    last_name: initialLastName || "",
+                    email: initialEmail || "",
                     phone: initialPhone || "",
                     state: initialState || "",
                     university: initialUniversity || "",
                 },
             });
         }
-    }, [isOpen, initialFirstName, initialLastName, initialPhone, initialState, initialUniversity]);
+    }, [isOpen, initialEmail, initialPhone, initialState, initialUniversity]);
 
     if (!isOpen) return null;
 
@@ -86,9 +80,14 @@ export default function EditProfileModal({
             >
                 {/* Header */}
                 <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-[#064E3B]">
-                        Edit Profile
-                    </h3>
+                    <div>
+                        <h3 className="text-lg font-bold text-neutral-900">
+                            Edit Personal Info
+                        </h3>
+                        <p className="text-xs text-neutral-500 mt-0.5">
+                            Update your personal and educational information.
+                        </p>
+                    </div>
                     <button
                         type="button"
                         onClick={onClose}
@@ -102,52 +101,30 @@ export default function EditProfileModal({
                     </button>
                 </div>
 
-                {/* Avatar with Teal Border and Camera Icon */}
-                <div className="relative mx-auto w-24 h-24 sm:w-28 sm:h-28">
-                    <div className="w-full h-full rounded-full overflow-hidden border-4 border-[#10B981] bg-neutral-100">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={avatarUrl}
-                            alt="Profile"
-                            className="w-full h-full object-cover object-top"
-                        />
-                    </div>
-
-                    {/* Camera Badge */}
-                    <button
-                        type="button"
-                        className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-white border border-neutral-900 shadow-sm flex items-center justify-center cursor-pointer hover:bg-neutral-50 transition-colors"
-                        title="Change photo"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E293B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                            <circle cx="12" cy="13" r="4" />
-                        </svg>
-                    </button>
-                </div>
-
                 {/* Formik Form */}
                 <FormikProvider value={formik}>
                     <form onSubmit={formik.handleSubmit} className="flex flex-col gap-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <FormikField
-                                name="first_name"
-                                label="First Name*"
-                                placeholder="First Name"
-                            />
-                            <FormikField
-                                name="last_name"
-                                label="Last Name*"
-                                placeholder="Last Name"
-                            />
+                        {/* Email Address - Non-editable */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold text-neutral-700">
+                                Email Address
+                            </label>
+                            <div className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-neutral-100/90 text-neutral-600 flex items-center justify-between text-sm select-none cursor-not-allowed">
+                                <span className="truncate font-medium">{initialEmail}</span>
+                                <span className="text-[11px] font-semibold text-neutral-400 bg-neutral-200/80 px-2 py-0.5 rounded-md flex-shrink-0">
+                                    Not editable
+                                </span>
+                            </div>
                         </div>
 
+                        {/* Phone Number */}
                         <FormikField
                             name="phone"
                             label="Phone Number"
                             placeholder="080XXXXXXXX"
                         />
 
+                        {/* State of Residence */}
                         {stateOptions.length > 0 && (
                             <FormikField
                                 as="select"
@@ -158,6 +135,7 @@ export default function EditProfileModal({
                             />
                         )}
 
+                        {/* University of Interest */}
                         {universityOptions.length > 0 && (
                             <FormikField
                                 as="select"
@@ -168,13 +146,13 @@ export default function EditProfileModal({
                             />
                         )}
 
-                        {/* Update Button */}
+                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={isLoading || formik.isSubmitting}
                             className="w-full h-12 mt-2 bg-[#2563EB] hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold text-sm rounded-2xl transition-colors cursor-pointer shadow-xs flex items-center justify-center gap-2"
                         >
-                            {isLoading || formik.isSubmitting ? "Updating..." : "Update Profile"}
+                            {isLoading || formik.isSubmitting ? "Updating..." : "Save Changes"}
                         </button>
                     </form>
                 </FormikProvider>
@@ -182,4 +160,3 @@ export default function EditProfileModal({
         </div>
     );
 }
-

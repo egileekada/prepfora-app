@@ -4,9 +4,9 @@ import { handleApiError } from "@/config/handleApiError";
 import httpService from "@/config/httpService";
 import { showSuccess } from "@/config/toast";
 import { URLS } from "@/config/urls";
-import { IAuthUser } from "@/types/auth";
+import { IAuthUser, IUpdateUserPayload, IUserProfile } from "@/types/auth";
 // import { IWaitlist } from "@/types/waitlist";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ import { useFetchData, useUnsecureFetchDataNoCache } from "./useFetchData";
 const useUser = () => {
 
     const router = useRouter()
-
+    const queryClient = useQueryClient()
 
     const validationSchema = Yup.object({
         first_name: Yup.string()
@@ -44,14 +44,22 @@ const useUser = () => {
         onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
         onSuccess: (data) => {
             showSuccess(data?.data?.message)
+            queryClient.invalidateQueries({ queryKey: [URLS.USER_PROFILE] })
             router.push(`/dashboard/home`)
         },
     });
 
-
+    const updateProfile = useMutation({
+        mutationFn: (data: IUpdateUserPayload) =>
+            httpService.patch(URLS.USER_PROFILE, data),
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+        onSuccess: (data) => {
+            showSuccess(data?.data?.message || "Profile updated successfully")
+            queryClient.invalidateQueries({ queryKey: [URLS.USER_PROFILE] })
+        },
+    });
 
     const [page, setPage] = useState(1)
-
 
     const useGetUniversity = () => {
         return useUnsecureFetchDataNoCache<any>({
@@ -60,14 +68,17 @@ const useUser = () => {
         });
     };
 
-
     const useGetProfile = () => {
-        return useFetchData<any>({
+        return useFetchData<{
+            success: boolean;
+            message: string;
+            data: IUserProfile;
+            pagination: any;
+        }>({
             endpoint: URLS.USER_PROFILE,
             name: [URLS.USER_PROFILE]
         });
     };
-
 
     const formik = useFormik<IAuthUser>({
         initialValues: {
@@ -108,7 +119,6 @@ const useUser = () => {
                     return date.toISOString();
                 }
             };
-
             updateUser.mutate({
                 ...data,
                 current_examination_date: convertToDate()
@@ -121,6 +131,8 @@ const useUser = () => {
     return {
         formik,
         isLoading,
+        updateProfile,
+        updateUser,
         useGetProfile,
         useGetUniversity,
         setPage,

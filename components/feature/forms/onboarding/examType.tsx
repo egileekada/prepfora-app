@@ -20,7 +20,7 @@ const CustomBox = ({ name, isActive, onClick }: CustomBoxProps) => {
             className={` ${isActive
                 ? " border-secondary-300 bg-secondary-50 "
                 : " border-neutral-100 "
-                } w-full h-[102px] text-neutral-500 flex justify-center items-center rounded-xl border relative `}
+                } w-full h-[102px] text-neutral-500 flex justify-center items-center rounded-xl border relative cursor-pointer transition-all `}
         >
             {isActive && (
                 <FaCheckCircle
@@ -57,8 +57,14 @@ const options = [
 
 export default function ExamType({
     formik,
+    onContinue,
+    buttonText = "Continue",
+    isLoading = false,
 }: {
     formik: FormikProps<IAuthUser>;
+    onContinue?: () => void;
+    buttonText?: string;
+    isLoading?: boolean;
 }) {
     const router = useRouter();
 
@@ -67,22 +73,38 @@ export default function ExamType({
 
     const toggleSelection = (value: string) => {
         if (!formik) return;
-        const current = formik.values?.examinations ?? [];
-        const next = current.includes(value)
-            ? current.filter((item) => item !== value)
-            : [...current, value];
+        const current = (formik.values?.examinations ?? []).map((e) => e.toLowerCase());
+        const target = value.toLowerCase();
+        const next = current.includes(target)
+            ? current.filter((item) => item !== target)
+            : [...current, target];
         formik.setFieldValue("examinations", next);
     };
 
     const formContent = (
-        <form className=" w-full p-6 flex flex-col gap-6 rounded-2xl bg-white ">
+        <form
+            onSubmit={(e) => {
+                e.preventDefault();
+                if (hasSelection) {
+                    if (onContinue) {
+                        onContinue();
+                    } else {
+                        router.push("/onboarding?type=exam-date");
+                    }
+                }
+            }}
+            className=" w-full p-6 flex flex-col gap-6 rounded-2xl bg-white "
+        >
             <div className=" w-full grid grid-cols-2 gap-3 ">
                 {options.map((item) => {
+                    const isActive = examinations
+                        .map((e) => e.toLowerCase())
+                        .includes(item.value.toLowerCase());
                     return (
                         <CustomBox
                             key={item.value}
                             name={item.label}
-                            isActive={examinations.includes(item.value)}
+                            isActive={isActive}
                             onClick={() => toggleSelection(item.value)}
                         />
                     );
@@ -91,15 +113,11 @@ export default function ExamType({
             <div className=" flex flex-col gap-4 w-full ">
                 <CustomButton
                     fullWidth
-                    onClick={() => {
-                        if (hasSelection) {
-                            router.push("/onboarding?type=exam-date");
-                        }
-                    }}
+                    type="submit"
                     variant={hasSelection ? "primary" : "disabled"}
-                    disabled={!hasSelection}
+                    disabled={!hasSelection || isLoading}
                 >
-                    Continue
+                    {isLoading ? "Saving..." : buttonText}
                 </CustomButton>
             </div>
         </form>
