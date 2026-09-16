@@ -14,20 +14,20 @@ import useExam from "@/hooks/exam/useExam";
 function MockExamContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const examParam = (searchParams.get("exam") || "JAMB").toUpperCase();
+    const rawExam = (searchParams.get("exam") || "JAMB").trim();
+    const cleanExamParam = rawExam.replace(/[_-]+/g, " ").toUpperCase();
     const subjectParam = searchParams.get("subject") || "English Language";
     const yearParam = searchParams.get("year") || "2024";
 
-    const { useGetQuestion } = useExam()
-
-    const { data } = useGetQuestion(subjectParam, "50", yearParam, examParam)
-
-    console.log(data)
-
-    const validExam =
-        examParam === "WAEC" || examParam === "NECO" || examParam === "POST UTME"
-            ? examParam
+    const validExam: "JAMB" | "WAEC" | "NECO" | "POST UTME" =
+        cleanExamParam === "WAEC" || cleanExamParam === "NECO"
+            ? (cleanExamParam as "WAEC" | "NECO")
+            : cleanExamParam.includes("POST")
+            ? "POST UTME"
             : "JAMB";
+
+    const { useGetQuestion } = useExam();
+    const { data } = useGetQuestion(subjectParam, "50", yearParam, validExam);
 
     const [activeResult, setActiveResult] = useState<MockExamResultData | null>(null);
 
