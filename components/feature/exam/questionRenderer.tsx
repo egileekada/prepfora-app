@@ -139,9 +139,16 @@ export default function QuestionRenderer({
                 {/* Prompt Header */}
                 <div className="flex flex-col gap-2 mb-6">
                     <div className="flex items-start justify-between gap-4">
-                        <h2 className="text-lg sm:text-xl font-bold text-neutral-900 leading-snug max-w-3xl">
-                            {question.prompt}
-                        </h2>
+                        {/<[a-z][\s\S]*>/i.test(question.prompt) ? (
+                            <h2
+                                className="text-lg sm:text-xl font-bold text-neutral-900 leading-snug max-w-3xl"
+                                dangerouslySetInnerHTML={{ __html: question.prompt }}
+                            />
+                        ) : (
+                            <h2 className="text-lg sm:text-xl font-bold text-neutral-900 leading-snug max-w-3xl">
+                                {question.prompt}
+                            </h2>
+                        )}
 
                         {question.year && (
                             <span className="flex-shrink-0 bg-[#E8FAF3] text-[#059669] text-xs font-bold px-2.5 py-1 rounded-md">
@@ -151,9 +158,16 @@ export default function QuestionRenderer({
                     </div>
 
                     {question.topicSubtitle && (
-                        <p className="text-sm font-semibold italic text-neutral-800 mt-1">
-                            {question.topicSubtitle}
-                        </p>
+                        /<[a-z][\s\S]*>/i.test(question.topicSubtitle) ? (
+                            <div
+                                className="text-sm font-semibold italic text-neutral-800 mt-1"
+                                dangerouslySetInnerHTML={{ __html: question.topicSubtitle }}
+                            />
+                        ) : (
+                            <p className="text-sm font-semibold italic text-neutral-800 mt-1">
+                                {question.topicSubtitle}
+                            </p>
+                        )
                     )}
                 </div>
 
@@ -185,15 +199,26 @@ export default function QuestionRenderer({
                                     </div>
 
                                     {/* Option Text */}
-                                    <span
-                                        className={`text-sm font-medium ${
-                                            isSelected
-                                                ? "text-neutral-900 font-semibold"
-                                                : "text-neutral-800"
-                                        }`}
-                                    >
-                                        {opt.text}
-                                    </span>
+                                    {/<[a-z][\s\S]*>/i.test(opt.text) ? (
+                                        <span
+                                            className={`text-sm font-medium ${
+                                                isSelected
+                                                    ? "text-neutral-900 font-semibold"
+                                                    : "text-neutral-800"
+                                            }`}
+                                            dangerouslySetInnerHTML={{ __html: opt.text }}
+                                        />
+                                    ) : (
+                                        <span
+                                            className={`text-sm font-medium ${
+                                                isSelected
+                                                    ? "text-neutral-900 font-semibold"
+                                                    : "text-neutral-800"
+                                            }`}
+                                        >
+                                            {opt.text}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}

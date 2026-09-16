@@ -27,3 +27,29 @@ export interface IUniversity {
     type: string | null
     website: string
 }
+
+export interface IUserProfile {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+    state: string | null;
+    phone: string | null;
+    current_examination_date: string | null;
+    university: string | null;
+    examinations: string[] | null;
+    current_expectation: string | null;
+    prep_points: number | null;
+    best_score: number | null;
+}
+
+export interface IUpdateUserPayload {
+    first_name?: string | null;
+    last_name?: string | null;
+    state?: string | null;
+    university?: string | null;
+    examinations?: string[] | null;
+    current_expectation?: string | null;
+    phone?: string | null;
+    current_examination_date?: string | null;
+}

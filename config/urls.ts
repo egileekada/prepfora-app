@@ -13,4 +13,6 @@ export const URLS = {
 
     QUESTION: "/questions",
     SUBJECT: "/subjects",
+    EXAMINATION: "/examination",
 };
+

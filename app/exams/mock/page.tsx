@@ -9,11 +9,20 @@ import {
     MockExamResultModal,
     MockExamResultData,
 } from "@/components/feature";
+import useExam from "@/hooks/exam/useExam";
 
 function MockExamContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const examParam = (searchParams.get("exam") || "JAMB").toUpperCase();
+    const subjectParam = searchParams.get("subject") || "English Language";
+    const yearParam = searchParams.get("year") || "2024";
+
+    const { useGetQuestion } = useExam()
+
+    const { data } = useGetQuestion(subjectParam, "50", yearParam, examParam)
+
+    console.log(data)
 
     const validExam =
         examParam === "WAEC" || examParam === "NECO" || examParam === "POST UTME"
@@ -103,4 +112,4 @@ export default function MockExamsPage() {
             <MockExamContent />
         </Suspense>
     );
-}
+}

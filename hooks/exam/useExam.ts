@@ -14,12 +14,18 @@ import { useState } from "react";
 import * as Yup from "yup";
 import { useFetchData, useUnsecureFetchDataNoCache } from "../useFetchData";
 import { PaginatedResponse } from "@/types/pagination";
-import { IDataExam, IExam } from "@/types/exam";
+import { 
+    IDataExam, 
+    IExam, 
+    ICreateExaminationPayload, 
+    IUpdateExaminationPayload, 
+    IExaminationReturn,
+    IQuestionMultipleResponse 
+} from "@/types/exam";
 
 const useExam = () => {
 
     const router = useRouter()
-
 
     const validationSchema = Yup.object({
         first_name: Yup.string()
@@ -50,10 +56,7 @@ const useExam = () => {
         },
     });
 
-
-
     const [page, setPage] = useState(1)
-
 
     const useGetSubject = () => {
         return useUnsecureFetchDataNoCache<PaginatedResponse<IDataExam>>({
@@ -62,11 +65,93 @@ const useExam = () => {
         });
     };
 
+    const useGetQuestion = (
+        subject?: string, 
+        limit?: string | number, 
+        year?: string, 
+        type?: string
+    ) => {
+        const cleanParams: Record<string, unknown> = {
+            subject: subject ? subject.toLowerCase() : "english",
+            limit: limit ? Number(limit) : 20,
+        };
+        if (type && type.trim()) {
+            cleanParams.type = type.toLowerCase();
+        }
+        if (year && year.trim()) {
+            cleanParams.year = year;
+        }
 
-    const useGetQuestion = () => {
-        return useFetchData<any>({
+        return useUnsecureFetchDataNoCache<{
+            success: boolean;
+            message: string;
+            data: IQuestionMultipleResponse;
+        }>({
             endpoint: URLS.QUESTION,
-            name: [URLS.QUESTION]
+            name: [URLS.QUESTION],
+            params: cleanParams
+        });
+    };
+
+    const createExamination = useMutation({
+        mutationFn: async (data: ICreateExaminationPayload) => {
+            const response = await httpService.post<{
+                success: boolean;
+                message: string;
+                data: IExaminationReturn;
+            }>(URLS.EXAMINATION, data);
+            return response.data;
+        },
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+    });
+
+    const updateExamination = useMutation({
+        mutationFn: async ({
+            id,
+            data,
+        }: {
+            id: string;
+            data: IUpdateExaminationPayload;
+        }) => {
+            const response = await httpService.put<{
+                success: boolean;
+                message: string;
+                data: IExaminationReturn;
+            }>(`${URLS.EXAMINATION}/${id}`, data);
+            return response.data;
+        },
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+    });
+
+    const useGetUserExaminations = (params?: {
+        user_id?: string;
+        subject?: string;
+        exam_type?: string;
+        year?: string;
+        type?: string;
+        page?: number;
+        limit?: number;
+    }) => {
+        return useUnsecureFetchDataNoCache<{
+            success: boolean;
+            message: string;
+            data: IExaminationReturn[];
+        }>({
+            endpoint: URLS.EXAMINATION,
+            name: [URLS.EXAMINATION],
+            params: params as Record<string, unknown>,
+        });
+    };
+
+    const useGetExaminationById = (id?: string) => {
+        return useUnsecureFetchDataNoCache<{
+            success: boolean;
+            message: string;
+            data: IExaminationReturn;
+        }>({
+            endpoint: `${URLS.EXAMINATION}/${id}`,
+            name: id ? [URLS.EXAMINATION, id] : [URLS.EXAMINATION],
+            enable: Boolean(id),
         });
     };
 
@@ -125,6 +210,10 @@ const useExam = () => {
         isLoading,
         useGetQuestion,
         useGetSubject,
+        useGetUserExaminations,
+        useGetExaminationById,
+        createExamination,
+        updateExamination,
         setPage,
         page
     };
