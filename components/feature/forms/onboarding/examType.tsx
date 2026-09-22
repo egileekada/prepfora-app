@@ -51,7 +51,7 @@ const options = [
     },
     {
         label: "POST-UTME",
-        value: "utme",
+        value: "post-utme",
     },
 ];
 
@@ -75,9 +75,24 @@ export default function ExamType({
         if (!formik) return;
         const current = (formik.values?.examinations ?? []).map((e) => e.toLowerCase());
         const target = value.toLowerCase();
-        const next = current.includes(target)
-            ? current.filter((item) => item !== target)
-            : [...current, target];
+        const isPostUtme = target === "post-utme";
+
+        const isCurrentlyActive = current.some((e) =>
+            e === target || (isPostUtme && (e === "utme" || e === "post_utme" || e === "post-utme"))
+        );
+
+        let next: string[];
+        if (isCurrentlyActive) {
+            next = current.filter(
+                (item) => item !== target && !(isPostUtme && (item === "utme" || item === "post_utme"))
+            );
+        } else {
+            // Filter out any legacy "utme" before adding "post-utme"
+            const cleaned = isPostUtme
+                ? current.filter((item) => item !== "utme" && item !== "post_utme")
+                : current;
+            next = [...cleaned, target];
+        }
         formik.setFieldValue("examinations", next);
     };
 
@@ -97,9 +112,10 @@ export default function ExamType({
         >
             <div className=" w-full grid grid-cols-2 gap-3 ">
                 {options.map((item) => {
+                    const isPostUtme = item.value === "post-utme";
                     const isActive = examinations
                         .map((e) => e.toLowerCase())
-                        .includes(item.value.toLowerCase());
+                        .some((e) => e === item.value.toLowerCase() || (isPostUtme && (e === "utme" || e === "post_utme" || e === "post-utme")));
                     return (
                         <CustomBox
                             key={item.value}

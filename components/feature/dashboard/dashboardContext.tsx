@@ -12,10 +12,20 @@ interface DashboardExamContextType {
 
 const EXAM_DISPLAY_NAMES: Record<string, string> = {
     jamb: "JAMB",
-    utme: "JAMB",
     waec: "WAEC",
-    "post-utme": "POST-UTME",
+    "post-utme": "POST UTME",
+    "post_utme": "POST UTME",
+    "post utme": "POST UTME",
     neco: "NECO",
+};
+
+const normalizeExamId = (exam: string): string => {
+    const clean = (exam || "").trim().toLowerCase().replace(/[\s_]+/g, "-");
+    if (clean.includes("post")) return "post-utme";
+    if (clean === "jamb" || clean === "utme") return "jamb";
+    if (clean === "waec") return "waec";
+    if (clean === "neco") return "neco";
+    return clean;
 };
 
 const DashboardExamContext = createContext<DashboardExamContextType>({
@@ -32,14 +42,14 @@ export function DashboardExamProvider({ children }: { children: React.ReactNode 
         try {
             const searchParams = new URLSearchParams(window.location.search);
             const fromQuery = searchParams.get("exam")?.toLowerCase();
-            if (fromQuery && (fromQuery in EXAM_DISPLAY_NAMES)) {
-                setSelectedExamState(fromQuery === "utme" ? "jamb" : fromQuery);
+            if (fromQuery && (fromQuery in EXAM_DISPLAY_NAMES || normalizeExamId(fromQuery) in EXAM_DISPLAY_NAMES)) {
+                setSelectedExamState(normalizeExamId(fromQuery));
                 return;
             }
 
             const stored = localStorage.getItem("prepfora_dashboard_exam");
-            if (stored && (stored in EXAM_DISPLAY_NAMES)) {
-                setSelectedExamState(stored);
+            if (stored && (stored in EXAM_DISPLAY_NAMES || normalizeExamId(stored) in EXAM_DISPLAY_NAMES)) {
+                setSelectedExamState(normalizeExamId(stored));
             }
         } catch (e) {
             console.error("Failed to read stored dashboard exam:", e);
@@ -47,7 +57,7 @@ export function DashboardExamProvider({ children }: { children: React.ReactNode 
     }, []);
 
     const setSelectedExam = (exam: string) => {
-        const normalized = exam.toLowerCase() === "utme" ? "jamb" : exam.toLowerCase();
+        const normalized = normalizeExamId(exam);
         setSelectedExamState(normalized);
         try {
             localStorage.setItem("prepfora_dashboard_exam", normalized);

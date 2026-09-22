@@ -27,17 +27,17 @@ const DEFAULT_OPTIONS = [
 
 const normalizeExam = (raw: string): { name: string; id: string } => {
     const clean = raw.trim().toLowerCase().replace(/[\s_]+/g, "-");
-    if (clean === "jamb" || clean === "utme") {
+    if (clean === "jamb") {
         return { name: "JAMB", id: "jamb" };
     }
     if (clean === "waec") {
         return { name: "WAEC", id: "waec" };
     }
-    if (clean === "post-utme" || clean === "postutme" || clean === "putme") {
-        return { name: "POST UTME", id: "post-utme" };
-    }
     if (clean === "neco") {
         return { name: "NECO", id: "neco" };
+    }
+    if (clean.includes("post") || clean === "utme" || clean === "post-utme" || clean === "postutme") {
+        return { name: "POST UTME", id: "post-utme" };
     }
     return {
         name: raw.toUpperCase(),
@@ -51,12 +51,13 @@ export default function DashboardNavbar() {
     const [selectedSubject, setSelectedSubject] = useState<SubjectCardData | null>(null);
 
     const { useGetProfile } = useUser();
-    const { data: profileResponse } = useGetProfile();
+    const { data: profileResponse, isLoading } = useGetProfile();
 
     const options = useMemo(() => {
         const userExams = profileResponse?.data?.examinations;
         if (userExams && Array.isArray(userExams) && userExams.length > 0) {
             const map = new Map<string, { name: string; id: string }>();
+
             userExams.forEach((exam) => {
                 if (exam) {
                     const norm = normalizeExam(exam);
@@ -81,20 +82,22 @@ export default function DashboardNavbar() {
 
     return (
         <div className=" flex items-center h-[100px] bg-[#FFFFFF75] border-b border-[#FFFFFF] justify-center  " >
-            <div className=" flex gap-4 " >
-                {options.map((item) => (
-                    <button
-                        key={item.id}
-                        onClick={() => setSelectedExam(item.id)}
-                        className={`${selectedExam === item.id
-                            ? " bg-secondary-50 border-secondary-300 text-secondary-300 font-semibold "
-                            : " text-neutral-500 border-transparent hover:text-neutral-700 "
-                            } border text-sm rounded-xl w-[112px] h-10 transition-colors cursor-pointer `}
-                    >
-                        {item.name}
-                    </button>
-                ))}
-            </div>
+            {!isLoading && (
+                <div className=" flex gap-4 " >
+                    {options.map((item) => (
+                        <button
+                            key={item.id}
+                            onClick={() => setSelectedExam(item.id)}
+                            className={`${selectedExam === item.id
+                                ? " bg-secondary-50 border-secondary-300 text-secondary-300 font-semibold "
+                                : " text-neutral-500 border-transparent hover:text-neutral-700 "
+                                } border text-sm rounded-xl w-[112px] h-10 transition-colors cursor-pointer `}
+                        >
+                            {item.name}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             <div className=" absolute right-8 flex h-full justify-center gap-6 items-center " >
                 <CustomButton onClick={() => setIsModalOpen(true)} >Start Practicing</CustomButton>

@@ -63,7 +63,7 @@ export default function StartMockExamModal({
     const requiresSubject =
         curriculum.code === "waec" || curriculum.code === "neco";
 
-    const modalTitle = `${curriculum.code?.toUpperCase()} Mock Exam`;
+    const modalTitle = `${curriculum.title} Mock Exam`;
 
     const handleContinue = () => {
         const yearVal = selectedYear || "2024";
@@ -76,7 +76,7 @@ export default function StartMockExamModal({
         onClose();
         router.push(
             `/exams/mock?subject=${encodeURIComponent(subjectVal)}&exam=${encodeURIComponent(
-                curriculum.code
+                curriculum.title
             )}&year=${encodeURIComponent(yearVal)}`
         );
     };
