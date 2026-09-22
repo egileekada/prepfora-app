@@ -5,6 +5,7 @@ export const URLS = {
 
     LOGIN: "/auth/login",
     REGISTER: "/auth/register",
+    GOOGLE: "/auth/google",
     USER_PROFILE: "/auth/me",
     OTP: "/auth/validate-otp",
     REFRESH_TOKEN: "/auth/refresh-token",

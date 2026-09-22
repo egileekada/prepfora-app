@@ -2,9 +2,9 @@
 import { ApiErrorResponse } from "@/config/getErrorMessage";
 import { handleApiError } from "@/config/handleApiError";
 import { tokenStorage, unsecureHttpService } from "@/config/httpService";
-import { showSuccess } from "@/config/toast";
+import { showError, showSuccess } from "@/config/toast";
 import { URLS } from "@/config/urls";
-import { IAuth, IAuthOtp } from "@/types/auth";
+import { IAuth, IAuthOtp, IGoogleAuthPayload } from "@/types/auth";
 // import { IWaitlist } from "@/types/waitlist";
 import { useMutation } from "@tanstack/react-query";
 import { AxiosError } from "axios";
@@ -84,6 +84,43 @@ const useAuth = () => {
         },
     });
 
+    const googleAuth = useMutation({
+        mutationFn: (data: IGoogleAuthPayload) =>
+            unsecureHttpService.post(URLS.GOOGLE, data),
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+        onSuccess: (data) => {
+            if (data?.data?.success === false) {
+                showError(data?.data?.message || "Google authentication failed");
+                return;
+            }
+
+            const responseData = data?.data?.data;
+            const tokens = responseData?.tokens;
+            const user = responseData?.user;
+
+            if (tokens?.access_token) {
+                tokenStorage.setAccess(tokens.access_token);
+            }
+            if (tokens?.refresh_token) {
+                tokenStorage.setRefresh(tokens.refresh_token);
+            }
+
+            showSuccess(data?.data?.message || "Authenticated successfully");
+
+            const hasFilledUserInfo = Boolean(
+                user?.first_name &&
+                user?.state &&
+                user?.university
+            );
+
+            if (hasFilledUserInfo) {
+                router.push("/dashboard/home");
+            } else {
+                router.push("/onboarding");
+            }
+        },
+    });
+
     const formik = useFormik({
         initialValues: {
             email: "",
@@ -121,12 +158,14 @@ const useAuth = () => {
         },
     });
 
-    const isLoading = login.isPending || register.isPending || otp.isPending
+    const isLoading = login.isPending || register.isPending || otp.isPending || googleAuth.isPending;
 
     return {
         formik,
         formikRegister,
         formikOtp,
+        googleAuth,
+        isGoogleLoading: googleAuth.isPending,
         isOpen,
         setOpen,
         isLoading,
