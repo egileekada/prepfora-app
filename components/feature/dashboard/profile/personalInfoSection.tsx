@@ -19,7 +19,7 @@ export default function PersonalInfoSection({
                 <button
                     type="button"
                     onClick={onEdit}
-                    className="border border-[#2563EB] text-[#2563EB] text-xs z-20 font-semibold px-4 py-1 rounded-full hover:bg-blue-50 transition-colors cursor-pointer"
+                    className="border border-[#2563EB] text-[#2563EB] text-xs font-semibold px-4 py-1 rounded-full hover:bg-blue-50 transition-colors cursor-pointer relative z-20 select-none shrink-0"
                 >
                     Edit
                 </button>

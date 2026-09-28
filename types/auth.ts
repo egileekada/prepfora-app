@@ -8,6 +8,13 @@ export interface IAuthOtp {
     otp: string;
 }
 
+export interface IGoogleAuthPayload {
+    id_token?: string | null;
+    email?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+}
+
 export interface IAuthUser {
     first_name: string,
     last_name: string,

@@ -158,6 +158,7 @@ function ExamContent() {
     const [answers, setAnswers] = useState<Record<number, string>>({});
     const [statuses, setStatuses] = useState<Record<number, QuestionStatus>>({});
     const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
+    const [isNavigatorOpen, setIsNavigatorOpen] = useState<boolean>(false);
 
     // Restore existing examination progress & answers from backend (GET /examination/{id}) and local storage
     useEffect(() => {
@@ -534,11 +535,12 @@ function ExamContent() {
                         persistAnswerToBackend(answers);
                         setIsSummaryOpen(true);
                     }}
+                    onOpenNavigator={() => setIsNavigatorOpen(true)}
                 />
 
                 {/* Save status badge */}
                 {saveStatus !== "idle" && (
-                    <div className="absolute right-6 sm:right-48 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 bg-white/90 backdrop-blur-xs border border-neutral-200 rounded-full text-xs font-semibold text-neutral-700 shadow-xs transition-all animate-fadeIn">
+                    <div className="absolute right-12 sm:right-48 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1 bg-white/90 backdrop-blur-xs border border-neutral-200 rounded-full text-xs font-semibold text-neutral-700 shadow-xs transition-all animate-fadeIn z-30">
                         {saveStatus === "saving" ? (
                             <>
                                 <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
@@ -566,7 +568,7 @@ function ExamContent() {
             </div>
 
             {/* Main Exam Body */}
-            <main className="flex-1 w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 items-start">
+            <main className="flex-1 w-full max-w-[1440px] mx-auto p-4 sm:p-6 lg:p-8 pb-24 sm:pb-8 flex flex-col lg:flex-row gap-6 items-start">
                 {/* Question Area (Left / Center) */}
                 <QuestionRenderer
                     question={currentQuestion}
@@ -581,12 +583,14 @@ function ExamContent() {
                     isLast={currentIndex === effectiveQuestions.length - 1}
                 />
 
-                {/* Question Navigator Sidebar (Right) */}
+                {/* Question Navigator Sidebar (Right) & Mobile Drawer */}
                 <QuestionNavigator
                     totalQuestions={effectiveQuestions.length}
                     currentIndex={currentIndex}
                     statuses={statuses}
                     onSelectQuestion={(idx) => setCurrentIndex(idx)}
+                    isOpenMobile={isNavigatorOpen}
+                    onCloseMobile={() => setIsNavigatorOpen(false)}
                 />
             </main>
 

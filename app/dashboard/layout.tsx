@@ -1,5 +1,5 @@
 import { DashboardNavbar, DashboardExamProvider } from "@/components/feature";
-import { Sidebar } from "@/components/common";
+import { Sidebar, MobileBottomNav } from "@/components/common";
 
 export default function DashboardLayout({
     children,
@@ -8,14 +8,15 @@ export default function DashboardLayout({
 }) {
     return (
         <DashboardExamProvider>
-            <section className=" w-full h-screen overflow-hidden flex bg-primary-50 " >
+            <section className=" w-full h-screen overflow-hidden flex bg-primary-50 relative " >
                 <Sidebar />
-                <div className=" flex-1 flex flex-col " >
+                <div className=" flex-1 flex flex-col h-full overflow-hidden " >
                     <DashboardNavbar />
-                    <div className=" pt-10 px-6 overflow-y-auto flex-1 " >
+                    <div className=" pt-4 px-4 pb-24 md:pt-8 md:px-6 md:pb-8 overflow-y-auto flex-1 " >
                         {children}
                     </div>
                 </div>
+                <MobileBottomNav />
             </section>
         </DashboardExamProvider>
     );

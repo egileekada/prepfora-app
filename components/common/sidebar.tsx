@@ -54,7 +54,7 @@ export default function Sidebar() {
     ];
 
     return (
-        <div className=" w-fit h-screen ">
+        <div className=" hidden lg:block w-fit h-screen shrink-0 ">
             <div className=" w-[263px] h-screen bg-primary-300 py-10 items-start flex flex-col px-6 ">
                 <div className=" ">
                     <Logo color="white" width={150} />
