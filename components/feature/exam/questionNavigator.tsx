@@ -9,6 +9,8 @@ interface QuestionNavigatorProps {
     currentIndex: number;
     statuses: Record<number, QuestionStatus>;
     onSelectQuestion: (index: number) => void;
+    isOpenMobile?: boolean;
+    onCloseMobile?: () => void;
 }
 
 export default function QuestionNavigator({
@@ -16,23 +18,50 @@ export default function QuestionNavigator({
     currentIndex,
     statuses,
     onSelectQuestion,
+    isOpenMobile,
+    onCloseMobile,
 }: QuestionNavigatorProps) {
     const questionNumbers = Array.from({ length: totalQuestions }, (_, i) => i + 1);
 
-    return (
-        <aside className="w-full lg:w-[260px] flex-shrink-0 bg-white p-5 rounded-2xl border border-[#E2EAF4] shadow-xs flex flex-col gap-4">
+    const renderNavigatorBody = () => (
+        <>
             {/* Header */}
-            <div>
-                <h3 className="text-base font-bold text-neutral-900">
-                    Question Navigator
-                </h3>
-                <p className="text-xs text-neutral-500 mt-0.5">
-                    Jump to any question quickly
-                </p>
+            <div className="flex items-start justify-between">
+                <div>
+                    <h3 className="text-base font-bold text-neutral-900">
+                        Question Navigator
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                        Jump to any question quickly
+                    </p>
+                </div>
+                {onCloseMobile && (
+                    <button
+                        type="button"
+                        onClick={onCloseMobile}
+                        className="lg:hidden text-neutral-500 hover:text-neutral-800 p-1 -mr-1 transition-colors cursor-pointer"
+                        aria-label="Close question navigator"
+                    >
+                        <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                        </svg>
+                    </button>
+                )}
             </div>
 
             {/* Legend */}
-            <div className="flex flex-col gap-2 pt-1 pb-2 text-xs font-medium text-neutral-600">
+            <div className="flex flex-col gap-2 pt-1 pb-1 text-xs font-medium text-neutral-600">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] inline-block" />
@@ -56,8 +85,8 @@ export default function QuestionNavigator({
                     const status = statuses[idx] || "unanswered";
                     const isCurrent = currentIndex === idx;
 
-                    // Base style
-                    let buttonStyle = "bg-white border border-[#BFDBFE] text-primary-300";
+                    // Base style matching Image 3
+                    let buttonStyle = "bg-[#EEF4FF] border border-[#BFDBFE] text-[#2563EB]";
 
                     if (status === "answered") {
                         buttonStyle = "bg-[#2563EB] text-white border-transparent";
@@ -69,10 +98,13 @@ export default function QuestionNavigator({
                         <button
                             key={num}
                             type="button"
-                            onClick={() => onSelectQuestion(idx)}
-                            className={`relative w-10 h-10 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center transition-all cursor-pointer hover:opacity-90 ${buttonStyle} ${
+                            onClick={() => {
+                                onSelectQuestion(idx);
+                                onCloseMobile?.();
+                            }}
+                            className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center transition-all cursor-pointer hover:opacity-90 ${buttonStyle} ${
                                 isCurrent
-                                    ? "ring-2 ring-offset-1 ring-primary-300"
+                                    ? "ring-2 ring-offset-1 ring-primary-300 shadow-xs"
                                     : ""
                             }`}
                         >
@@ -85,6 +117,30 @@ export default function QuestionNavigator({
                     );
                 })}
             </div>
-        </aside>
+        </>
+    );
+
+    return (
+        <>
+            {/* Desktop Sticky Sidebar */}
+            <aside className="hidden lg:flex flex-col w-[260px] flex-shrink-0 bg-white p-5 rounded-2xl border border-[#E2EAF4] shadow-xs gap-4 sticky top-24">
+                {renderNavigatorBody()}
+            </aside>
+
+            {/* Mobile Slide-Over Drawer matching Image 3 */}
+            {isOpenMobile && (
+                <div className="fixed inset-0 z-50 lg:hidden">
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity animate-fadeIn"
+                        onClick={onCloseMobile}
+                    />
+                    {/* Drawer */}
+                    <aside className="fixed inset-y-0 left-0 w-[82%] max-w-[320px] bg-white h-full p-5 sm:p-6 flex flex-col gap-4 shadow-2xl overflow-y-auto z-50 animate-slideInLeft">
+                        {renderNavigatorBody()}
+                    </aside>
+                </div>
+            )}
+        </>
     );
 }

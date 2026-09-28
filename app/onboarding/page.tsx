@@ -7,6 +7,7 @@ import useUser from "@/hooks/useUser";
 import { IUniversity } from "@/types/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
+import { IoIosArrowDropleft } from "react-icons/io";
 
 
 export default function OnboardingPage() {
@@ -16,8 +17,7 @@ export default function OnboardingPage() {
     const { formik, useGetUniversity, isLoading } = useUser();
 
     const { data } = useGetUniversity();
-
-    const router = useRouter();
+    const { back, push } = useRouter();
 
     console.log(tokenStorage.getAccess());
 
@@ -65,18 +65,21 @@ export default function OnboardingPage() {
 
     useEffect(() => {
         if (!formik.values.first_name && query) {
-            router.push("/onboarding");
+            push("/onboarding");
         }
     })
 
-    console.log(formik.values);
-    console.log(formik.errors);
-
-
-
     return (
-        <section className=" flex-1 flex py-6 flex-col justify-center items-center ">
-            <div className=" max-w-[460px] w-full flex flex-col gap-8 ">
+        <section className=" flex-1 flex lg:py-6 flex-col lg:justify-center lg:items-center ">
+            <button
+                type="button"
+                onClick={() => back()}
+                className="flex items-center gap-2 text-neutral-800 hover:text-neutral-900 transition-colors mr-auto w-fit group cursor-pointer"
+            >
+                <IoIosArrowDropleft size={26} className="text-neutral-800 group-hover:scale-105 transition-transform" />
+                <CustomText type="body-md" className="font-medium text-neutral-800">Back</CustomText>
+            </button>
+            <div className=" max-w-[460px] w-full flex flex-col lg:pt-0 pt-8 gap-8 ">
                 <div className=" flex flex-col gap-2 mt-4 ">
                     <CustomText type="headline-md" className=" font-semibold ">
                         {!query ? "Complete Your Profile" : query === "exam-type" ? "Choose the type of exam you want to focus on" : query === "exam-date" ? "Choose your closest exam date" : query === "goals" ? "What's your goal?" : "What's your goal?"}

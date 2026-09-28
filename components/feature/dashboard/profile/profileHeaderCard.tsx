@@ -77,7 +77,7 @@ export default function ProfileHeaderCard({
             <button
                 type="button"
                 onClick={onEditProfile}
-                className="border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 font-medium text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
+                className="border border-[#2563EB] relative z-20 text-[#2563EB] hover:bg-blue-50 font-medium text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
             >
                 Edit Profile
             </button>

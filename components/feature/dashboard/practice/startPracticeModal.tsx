@@ -45,7 +45,30 @@ const SCHOOL_OPTIONS = [
 
 const EXAM_TYPE_OPTIONS = ["UTME", "WAEC", "NECO", "POST-UTME"];
 const YEAR_OPTIONS = ["2024", "2023", "2022", "2021", "2020", "2019", "2018"];
-const QUESTION_OPTIONS = [10, 20, 30, 50];
+const QUESTION_OPTIONS = [10, 20, 40, 60, 100];
+
+export const getRecommendedTime = (questions: number) => {
+    switch (questions) {
+        case 10:
+            return { hours: 0, minutes: 5, seconds: 0 };
+        case 20:
+            return { hours: 0, minutes: 10, seconds: 0 };
+        case 40:
+            return { hours: 0, minutes: 20, seconds: 0 };
+        case 60:
+            return { hours: 0, minutes: 30, seconds: 0 };
+        case 100:
+            return { hours: 1, minutes: 0, seconds: 0 };
+        default: {
+            const totalMinutes = Math.round(questions * 0.5);
+            return {
+                hours: Math.floor(totalMinutes / 60),
+                minutes: totalMinutes % 60,
+                seconds: 0,
+            };
+        }
+    }
+};
 
 export default function StartPracticeModal({
     isOpen,
@@ -68,8 +91,12 @@ export default function StartPracticeModal({
     const [selectedSchool, setSelectedSchool] = useState<string>("Obafemi Awolowo University");
     const [questionCount, setQuestionCount] = useState<number>(20);
     const [hours, setHours] = useState<number>(0);
-    const [minutes, setMinutes] = useState<number>(20);
+    const [minutes, setMinutes] = useState<number>(10);
     const [seconds, setSeconds] = useState<number>(0);
+    const [timeTab, setTimeTab] = useState<"recommended" | "custom">("recommended");
+    const [hoursInput, setHoursInput] = useState<string>("00");
+    const [minutesInput, setMinutesInput] = useState<string>("10");
+    const [secondsInput, setSecondsInput] = useState<string>("00");
     const [started, setStarted] = useState<boolean>(false);
 
     // Dropdown open states
@@ -86,16 +113,28 @@ export default function StartPracticeModal({
     // Subjects list from backend response
     const subjectsList = useMemo(() => {
         return subjectsData?.data?.subjects || [];
-    }, [subjectsData]);
+    }, [subjectsData?.data?.subjects]);
+
+    // Keep input strings synchronized with numeric hours/minutes/seconds
+    useEffect(() => {
+        setHoursInput(String(hours).padStart(2, "0"));
+        setMinutesInput(String(minutes).padStart(2, "0"));
+        setSecondsInput(String(seconds).padStart(2, "0"));
+    }, [hours, minutes, seconds]);
 
     // Synchronize initial selection when modal opens or propSubject changes
     useEffect(() => {
         if (isOpen) {
             setStep("subject");
             setQuestionCount(20);
-            setHours(0);
-            setMinutes(20);
-            setSeconds(0);
+            const defaultRec = getRecommendedTime(20);
+            setHours(defaultRec.hours);
+            setMinutes(defaultRec.minutes);
+            setSeconds(defaultRec.seconds);
+            setTimeTab("recommended");
+            setHoursInput(String(defaultRec.hours).padStart(2, "0"));
+            setMinutesInput(String(defaultRec.minutes).padStart(2, "0"));
+            setSecondsInput(String(defaultRec.seconds).padStart(2, "0"));
             setIsSubjectDropdownOpen(false);
             setIsExamTypeDropdownOpen(false);
             setIsYearDropdownOpen(false);
@@ -182,8 +221,6 @@ export default function StartPracticeModal({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    if (!isOpen) return null;
-
     const subjectTitle = `${selectedSubjectDisplayName} Practice`;
 
     const handleBack = () => {
@@ -206,22 +243,19 @@ export default function StartPracticeModal({
         } else if (step === "school") {
             setStep("questions");
         } else if (step === "questions") {
-            // Adjust default recommended practice time if user has not customized yet
-            if (questionCount === 10) {
-                setHours(0);
-                setMinutes(10);
-            } else if (questionCount === 20) {
-                setHours(0);
-                setMinutes(20);
-            } else if (questionCount === 30) {
-                setHours(0);
-                setMinutes(30);
-            } else if (questionCount === 50) {
-                setHours(0);
-                setMinutes(50);
-            }
+            const rec = getRecommendedTime(questionCount);
+            setHours(rec.hours);
+            setMinutes(rec.minutes);
+            setSeconds(rec.seconds);
+            setTimeTab("recommended");
             setStep("time");
         } else if (step === "time") {
+            if (timeTab === "recommended") {
+                const rec = getRecommendedTime(questionCount);
+                setHours(rec.hours);
+                setMinutes(rec.minutes);
+                setSeconds(rec.seconds);
+            }
             setStep("summary");
         } else if (step === "summary") {
             setStarted(true);
@@ -256,19 +290,82 @@ export default function StartPracticeModal({
         }
     };
 
-    const formatTimeDisplay = () => {
-        const hStr = String(hours).padStart(2, "0");
-        const mStr = String(minutes).padStart(2, "0");
-        const sStr = String(seconds).padStart(2, "0");
-        return { hStr, mStr, sStr };
+    const handleHoursChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.replace(/\D/g, "");
+        setHoursInput(val);
+        if (val !== "") {
+            const num = Math.min(12, Math.max(0, parseInt(val, 10)));
+            setHours(num);
+        }
     };
 
-    const { hStr, mStr, sStr } = formatTimeDisplay();
+    const handleHoursBlur = () => {
+        const num = Math.min(12, Math.max(0, parseInt(hoursInput, 10) || 0));
+        setHours(num);
+        setHoursInput(String(num).padStart(2, "0"));
+    };
 
-    const summaryTimeText =
-        hours > 0
-            ? `${hours} hr${hours > 1 ? "s" : ""} ${minutes > 0 ? `${minutes} mins` : ""}`
-            : `${minutes} mins`;
+    const handleMinutesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.replace(/\D/g, "");
+        setMinutesInput(val);
+        if (val !== "") {
+            const num = Math.min(59, Math.max(0, parseInt(val, 10)));
+            setMinutes(num);
+        }
+    };
+
+    const handleMinutesBlur = () => {
+        const num = Math.min(59, Math.max(0, parseInt(minutesInput, 10) || 0));
+        setMinutes(num);
+        setMinutesInput(String(num).padStart(2, "0"));
+    };
+
+    const handleSecondsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.replace(/\D/g, "");
+        setSecondsInput(val);
+        if (val !== "") {
+            const num = Math.min(59, Math.max(0, parseInt(val, 10)));
+            setSeconds(num);
+        }
+    };
+
+    const handleSecondsBlur = () => {
+        const num = Math.min(59, Math.max(0, parseInt(secondsInput, 10) || 0));
+        setSeconds(num);
+        setSecondsInput(String(num).padStart(2, "0"));
+    };
+
+    const handleTimeKeyDown = (
+        e: React.KeyboardEvent<HTMLInputElement>,
+        type: "hours" | "minutes" | "seconds"
+    ) => {
+        if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (type === "hours") setHours((h) => Math.min(12, h + 1));
+            if (type === "minutes") setMinutes((m) => Math.min(59, m + 1));
+            if (type === "seconds") setSeconds((s) => (s < 59 ? s + 1 : 0));
+        } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            if (type === "hours") setHours((h) => Math.max(0, h - 1));
+            if (type === "minutes") setMinutes((m) => Math.max(0, m - 1));
+            if (type === "seconds") setSeconds((s) => (s > 0 ? s - 1 : 59));
+        }
+    };
+
+    const recommendedTime = getRecommendedTime(questionCount);
+    const recHStr = String(recommendedTime.hours).padStart(2, "0");
+    const recMStr = String(recommendedTime.minutes).padStart(2, "0");
+    const recSStr = String(recommendedTime.seconds).padStart(2, "0");
+
+    const summaryTimeText = (() => {
+        const parts: string[] = [];
+        if (hours > 0) parts.push(`${hours} hr${hours > 1 ? "s" : ""}`);
+        if (minutes > 0) parts.push(`${minutes} min${minutes > 1 ? "s" : ""}`);
+        if (seconds > 0) parts.push(`${seconds} sec${seconds > 1 ? "s" : ""}`);
+        return parts.length > 0 ? parts.join(" ") : "0 mins";
+    })();
+
+    if (!isOpen) return null;
 
     return (
         <div
@@ -666,120 +763,219 @@ export default function StartPracticeModal({
 
                 {/* Step 4: Set Time */}
                 {step === "time" && (
-                    <div className="flex flex-col gap-4">
-                        <h2 className="text-xl font-bold text-neutral-900">
+                    <div className="flex flex-col">
+                        <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">
                             Set Time
                         </h2>
-                        <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed max-w-sm mb-4">
-                            Since this is a practice session, you are allowed to set how long you would like to practice for
+                        <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed max-w-sm mt-1">
+                            Since this is a practice session, you can either go with the recommended time or manually set how long you would like to practice for.
                         </p>
 
-                        {/* Time Display with interactive stepper controls */}
-                        <div className="py-6 flex items-center justify-center gap-2 sm:gap-3 text-neutral-900">
-                            {/* Hours */}
-                            <div className="flex flex-col items-center">
+                        {/* Tabs: Recommended Time vs Set Time */}
+                        <div className="flex items-center justify-center border-b border-neutral-100 mt-6 mb-6">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setTimeTab("recommended");
+                                    const rec = getRecommendedTime(questionCount);
+                                    setHours(rec.hours);
+                                    setMinutes(rec.minutes);
+                                    setSeconds(rec.seconds);
+                                }}
+                                className={`pb-2.5 px-4 sm:px-6 text-sm sm:text-base font-semibold transition-all relative cursor-pointer ${
+                                    timeTab === "recommended"
+                                        ? "text-primary-300"
+                                        : "text-neutral-900 hover:text-neutral-600"
+                                }`}
+                            >
+                                Recommended Time
+                                {timeTab === "recommended" && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-300 rounded-full" />
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTimeTab("custom")}
+                                className={`pb-2.5 px-4 sm:px-6 text-sm sm:text-base font-semibold transition-all relative cursor-pointer ${
+                                    timeTab === "custom"
+                                        ? "text-primary-300"
+                                        : "text-neutral-900 hover:text-neutral-600"
+                                }`}
+                            >
+                                Set Time
+                                {timeTab === "custom" && (
+                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-300 rounded-full" />
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Tab Content */}
+                        {timeTab === "recommended" ? (
+                            /* Recommended Time Display (Image 1): No colons, clean display */
+                            <div className="py-8 sm:py-10 flex items-center justify-center gap-4 sm:gap-6 text-neutral-900 select-none">
                                 <div className="flex items-baseline">
-                                    <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                                        {hStr}
+                                    <span className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">
+                                        {recHStr}
                                     </span>
-                                    <span className="text-xs font-semibold text-neutral-600 ml-1">
+                                    <span className="text-xs sm:text-sm font-medium text-neutral-700 ml-1.5">
                                         hrs
                                     </span>
                                 </div>
-                                <div className="flex gap-1.5 mt-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setHours((h) => Math.max(0, h - 1))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
-                                        title="Decrease hours"
-                                    >
-                                        -
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setHours((h) => Math.min(12, h + 1))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
-                                        title="Increase hours"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-
-                            <span className="text-2xl sm:text-3xl font-bold text-neutral-400 -mt-6">
-                                :
-                            </span>
-
-                            {/* Minutes */}
-                            <div className="flex flex-col items-center">
                                 <div className="flex items-baseline">
-                                    <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                                        {mStr}
+                                    <span className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">
+                                        {recMStr}
                                     </span>
-                                    <span className="text-xs font-semibold text-neutral-600 ml-1">
+                                    <span className="text-xs sm:text-sm font-medium text-neutral-700 ml-1.5">
                                         mins
                                     </span>
                                 </div>
-                                <div className="flex gap-1.5 mt-1.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setMinutes((m) => Math.max(5, m - 5))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
-                                        title="Decrease minutes"
-                                    >
-                                        -
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setMinutes((m) => Math.min(59, m + 5))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
-                                        title="Increase minutes"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-
-                            <span className="text-2xl sm:text-3xl font-bold text-neutral-400 -mt-6">
-                                :
-                            </span>
-
-                            {/* Seconds */}
-                            <div className="flex flex-col items-center">
                                 <div className="flex items-baseline">
-                                    <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                                        {sStr}
+                                    <span className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900">
+                                        {recSStr}
                                     </span>
-                                    <span className="text-xs font-semibold text-neutral-600 ml-1">
+                                    <span className="text-xs sm:text-sm font-medium text-neutral-700 ml-1.5">
                                         secs
                                     </span>
                                 </div>
-                                <div className="flex gap-1.5 mt-1.5">
+                            </div>
+                        ) : (
+                            /* Set Time Display (Image 2): Colons, editable inputs with subtle steppers */
+                            <div className="py-6 sm:py-7 flex items-center justify-center gap-2 sm:gap-3 text-neutral-900 select-none">
+                                {/* Hours */}
+                                <div className="flex flex-col items-center">
                                     <button
                                         type="button"
-                                        onClick={() => setSeconds((s) => (s >= 15 ? s - 15 : 0))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
-                                        title="Decrease seconds"
+                                        onClick={() => setHours((h) => Math.min(12, h + 1))}
+                                        className="text-neutral-400 hover:text-primary-300 p-0.5 transition-colors cursor-pointer"
+                                        title="Increase hours"
                                     >
-                                        -
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="18 15 12 9 6 15" />
+                                        </svg>
                                     </button>
+                                    <div className="flex items-baseline">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={2}
+                                            value={hoursInput}
+                                            onChange={handleHoursChange}
+                                            onBlur={handleHoursBlur}
+                                            onKeyDown={(e) => handleTimeKeyDown(e, "hours")}
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-13 sm:w-15 text-center text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 bg-neutral-50/80 hover:bg-neutral-100 focus:bg-white border border-transparent focus:border-primary-300 focus:ring-2 focus:ring-primary-100 rounded-xl py-0.5 transition-all outline-none"
+                                        />
+                                        <span className="text-xs sm:text-sm font-medium text-neutral-700 ml-1">
+                                            hrs
+                                        </span>
+                                    </div>
                                     <button
                                         type="button"
-                                        onClick={() => setSeconds((s) => (s <= 45 ? s + 15 : 0))}
-                                        className="w-6 h-5 rounded bg-neutral-100 hover:bg-neutral-200 text-xs font-bold flex items-center justify-center text-neutral-600 cursor-pointer"
+                                        onClick={() => setHours((h) => Math.max(0, h - 1))}
+                                        className="text-neutral-400 hover:text-primary-300 p-0.5 transition-colors cursor-pointer"
+                                        title="Decrease hours"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <span className="text-2xl sm:text-3xl font-light text-neutral-900 mx-1 sm:mx-2 -mt-1">
+                                    :
+                                </span>
+
+                                {/* Minutes */}
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMinutes((m) => Math.min(59, m + 1))}
+                                        className="text-neutral-400 hover:text-primary-300 p-0.5 transition-colors cursor-pointer"
+                                        title="Increase minutes"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="18 15 12 9 6 15" />
+                                        </svg>
+                                    </button>
+                                    <div className="flex items-baseline">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={2}
+                                            value={minutesInput}
+                                            onChange={handleMinutesChange}
+                                            onBlur={handleMinutesBlur}
+                                            onKeyDown={(e) => handleTimeKeyDown(e, "minutes")}
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-13 sm:w-15 text-center text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 bg-neutral-50/80 hover:bg-neutral-100 focus:bg-white border border-transparent focus:border-primary-300 focus:ring-2 focus:ring-primary-100 rounded-xl py-0.5 transition-all outline-none"
+                                        />
+                                        <span className="text-xs sm:text-sm font-medium text-neutral-700 ml-1">
+                                            mins
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMinutes((m) => Math.max(0, m - 1))}
+                                        className="text-neutral-400 hover:text-primary-300 p-0.5 transition-colors cursor-pointer"
+                                        title="Decrease minutes"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <span className="text-2xl sm:text-3xl font-light text-neutral-900 mx-1 sm:mx-2 -mt-1">
+                                    :
+                                </span>
+
+                                {/* Seconds */}
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeconds((s) => (s < 59 ? s + 1 : 0))}
+                                        className="text-neutral-400 hover:text-primary-300 p-0.5 transition-colors cursor-pointer"
                                         title="Increase seconds"
                                     >
-                                        +
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="18 15 12 9 6 15" />
+                                        </svg>
+                                    </button>
+                                    <div className="flex items-baseline">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={2}
+                                            value={secondsInput}
+                                            onChange={handleSecondsChange}
+                                            onBlur={handleSecondsBlur}
+                                            onKeyDown={(e) => handleTimeKeyDown(e, "seconds")}
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-13 sm:w-15 text-center text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 bg-neutral-50/80 hover:bg-neutral-100 focus:bg-white border border-transparent focus:border-primary-300 focus:ring-2 focus:ring-primary-100 rounded-xl py-0.5 transition-all outline-none"
+                                        />
+                                        <span className="text-xs sm:text-sm font-medium text-neutral-700 ml-1">
+                                            secs
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSeconds((s) => (s > 0 ? s - 1 : 59))}
+                                        className="text-neutral-400 hover:text-primary-300 p-0.5 transition-colors cursor-pointer"
+                                        title="Decrease seconds"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Continue Button */}
                         <button
                             type="button"
                             onClick={handleContinue}
-                            className="w-full h-12 mt-4 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs"
+                            className="w-full h-13 mt-6 bg-primary-300 hover:bg-primary-250 text-white rounded-2xl font-semibold text-base transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs"
                         >
                             Continue
                         </button>

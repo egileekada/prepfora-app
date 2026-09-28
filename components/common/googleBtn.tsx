@@ -34,6 +34,9 @@ export default function GoogleBtn() {
     const [scriptLoaded, setScriptLoaded] = useState(false);
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
+    const mutateRef = useRef(googleAuth.mutate);
+    mutateRef.current = googleAuth.mutate;
+
     // Load Google Identity Services script
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -76,7 +79,7 @@ export default function GoogleBtn() {
                     const firstName = decoded?.given_name || decoded?.name?.split(" ")?.[0] || null;
                     const lastName = decoded?.family_name || decoded?.name?.split(" ")?.slice(1)?.join(" ") || null;
 
-                    googleAuth.mutate({
+                    mutateRef.current({
                         id_token: response.credential,
                         email,
                         first_name: firstName,
@@ -97,11 +100,16 @@ export default function GoogleBtn() {
         } catch (error) {
             console.error("Error initializing Google Identity Services:", error);
         }
-    }, [scriptLoaded, clientId, googleAuth]);
+    }, [scriptLoaded, clientId]);
 
     const handleClick = () => {
-        if (!clientId) {
+        if (!clientId || clientId.includes("YOUR_CLIENT_ID")) {
             showError("Google Client ID is missing. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your .env file.");
+            return;
+        }
+
+        if (!clientId.includes(".apps.googleusercontent.com")) {
+            showError("Invalid Google Client ID. It must end with .apps.googleusercontent.com from your Firebase/Google console.");
             return;
         }
 
@@ -113,7 +121,7 @@ export default function GoogleBtn() {
     };
 
     return (
-        <div className="relative w-full">
+        <div className="relative w-full overflow-hidden rounded-xl">
             <CustomButton
                 type="button"
                 variant="outline"
