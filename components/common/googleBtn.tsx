@@ -120,16 +120,15 @@ export default function GoogleBtn() {
         }
     };
 
+
     return (
-        <div className="relative w-full overflow-hidden rounded-xl">
+        <div className=" w-full relative z-20 overflow-hidden rounded-xl">
             <CustomButton
                 type="button"
                 variant="outline"
                 fullWidth
                 loading={isGoogleLoading}
-                disabled={isGoogleLoading}
                 onClick={handleClick}
-                className="w-full border-primary-300 relative overflow-hidden flex items-center justify-center gap-2"
             >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <g clipPath="url(#clip0_1374_7673)">
@@ -148,13 +147,13 @@ export default function GoogleBtn() {
             </CustomButton>
 
             {/* Hidden native Google button container that receives user clicks directly when rendered */}
-            {clientId && !isGoogleLoading && (
+            {/* {clientId && !isGoogleLoading && (
                 <div
                     ref={googleButtonRef}
                     className="absolute inset-0 opacity-0 cursor-pointer overflow-hidden pointer-events-auto flex items-center justify-center scale-150"
                     aria-hidden="true"
                 />
-            )}
+            )} */}
         </div>
     );
 }
