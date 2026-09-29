@@ -16,7 +16,7 @@ export default function Layout({
                 </div>
 
                 {/* Auth form container - full width on mobile/tablet, half on desktop */}
-                <div className="w-full lg:w-1/2 min-h-screen overflow-y-auto py-8 sm:py-10 px-4 sm:px-6 md:px-8 flex lg:justify-center lg:items-center lg:bg-accent/70">
+                <div className="w-full lg:w-1/2 min-h-screen overflow-y-auto py-8 sm:py-10 px-4 sm:px-6 md:px-8 flex lg:justify-center lg:items-center">
                     {children}
                 </div>
             </div>

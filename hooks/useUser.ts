@@ -45,7 +45,7 @@ const useUser = () => {
         onSuccess: (data) => {
             showSuccess(data?.data?.message)
             queryClient.invalidateQueries({ queryKey: [URLS.USER_PROFILE] })
-            router.push(`/dashboard/home`)
+            router.replace(`/dashboard/home`)
         },
     });
 
