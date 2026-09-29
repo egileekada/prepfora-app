@@ -17,7 +17,7 @@ export default function OnboardingPage() {
     const { formik, useGetUniversity, isLoading } = useUser();
 
     const { data } = useGetUniversity();
-    const { back, push } = useRouter();
+    const { push } = useRouter();
 
     console.log(tokenStorage.getAccess());
 
