@@ -71,14 +71,14 @@ export default function OnboardingPage() {
 
     return (
         <section className=" flex-1 flex lg:py-6 flex-col lg:justify-center lg:items-center ">
-            <button
+            {/* <button
                 type="button"
                 onClick={() => back()}
                 className="flex items-center gap-2 text-neutral-800 hover:text-neutral-900 transition-colors mr-auto w-fit group cursor-pointer"
             >
                 <IoIosArrowDropleft size={26} className="text-neutral-800 group-hover:scale-105 transition-transform" />
                 <CustomText type="body-md" className="font-medium text-neutral-800">Back</CustomText>
-            </button>
+            </button> */}
             <div className=" max-w-[460px] w-full flex flex-col lg:pt-0 pt-8 gap-8 ">
                 <div className=" flex flex-col gap-2 mt-4 ">
                     <CustomText type="headline-md" className=" font-semibold ">

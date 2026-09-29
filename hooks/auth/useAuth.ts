@@ -114,9 +114,9 @@ const useAuth = () => {
             );
 
             if (hasFilledUserInfo) {
-                router.push("/dashboard/home");
+                router.replace("/dashboard/home");
             } else {
-                router.push("/onboarding");
+                router.replace("/onboarding");
             }
         },
     });
