@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, keepPreviousData, type UseQueryResult } from "@tanstack/react-query";
 import { fetchSecureData, fetchUnsecureData } from "../config/api";
 
 interface UseFetchDataOptions {
@@ -10,7 +10,7 @@ interface UseFetchDataOptions {
   id?: string | number;
   queryKey?: (string | number | undefined)[];
   enable?: boolean;
-  pagination?: boolean
+  pagination?: boolean;
 }
 
 const buildQueryKey = (
@@ -36,11 +36,13 @@ export const useFetchData = <T>({
   id,
   queryKey = [],
   enable = true,
+  pagination = false,
 }: UseFetchDataOptions): UseQueryResult<T> => {
   return useQuery<T>({
     queryKey: buildQueryKey(name, endpoint, id, queryKey, params),
     queryFn: () => fetchSecureData<T>(endpoint, params),
     enabled: enable,
+    placeholderData: pagination ? keepPreviousData : undefined,
   });
 };
 
@@ -51,14 +53,16 @@ export const useFetchDataNoCache = <T>({
   id,
   queryKey = [],
   enable = true,
+  pagination = false,
 }: UseFetchDataOptions): UseQueryResult<T> => {
   return useQuery<T>({
     queryKey: buildQueryKey(name, endpoint, id, queryKey, params),
     queryFn: () => fetchSecureData<T>(endpoint, params),
     enabled: enable,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
+    staleTime: pagination ? 30000 : 0,
+    gcTime: pagination ? 5 * 60 * 1000 : 0,
+    refetchOnMount: pagination ? false : "always",
+    placeholderData: pagination ? keepPreviousData : undefined,
   });
 };
 
@@ -69,14 +73,16 @@ export const useUnsecureFetchDataNoCache = <T>({
   id,
   queryKey = [],
   enable = true,
+  pagination = false,
 }: UseFetchDataOptions): UseQueryResult<T> => {
   return useQuery<T>({
     queryKey: buildQueryKey(name, endpoint, id, queryKey, params),
-    queryFn: () => fetchUnsecureData<T>(endpoint, params), // FIXED
+    queryFn: () => fetchUnsecureData<T>(endpoint, params),
     enabled: enable,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
+    staleTime: pagination ? 30000 : 0,
+    gcTime: pagination ? 5 * 60 * 1000 : 0,
+    refetchOnMount: pagination ? false : "always",
+    placeholderData: pagination ? keepPreviousData : undefined,
   });
 };
 
@@ -87,10 +93,12 @@ export const useUnsecureFetchData = <T>({
   id,
   queryKey = [],
   enable = true,
+  pagination = false,
 }: UseFetchDataOptions): UseQueryResult<T> => {
   return useQuery<T>({
     queryKey: buildQueryKey(name, endpoint, id, queryKey, params),
-    queryFn: () => fetchUnsecureData<T>(endpoint, params), // FIXED
+    queryFn: () => fetchUnsecureData<T>(endpoint, params),
     enabled: enable,
+    placeholderData: pagination ? keepPreviousData : undefined,
   });
 };
