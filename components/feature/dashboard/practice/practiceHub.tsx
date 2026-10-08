@@ -8,6 +8,7 @@ import PracticeSubjectCard, { SubjectCardData } from "./practiceSubjectCard";
 import { useDashboardExam } from "../dashboardContext";
 import useExam from "@/hooks/exam/useExam";
 import useUser from "@/hooks/useUser";
+import { IExaminationReturn } from "@/types/exam";
 
 // Mock base subjects matching the visual screenshot
 const DEFAULT_SUBJECTS: SubjectCardData[] = [
@@ -97,6 +98,11 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
         setSelectedExam(navbarExamName);
     }, [navbarExamName]);
 
+    // Sessions filter and pagination (5 per page, driven by API)
+    const SESSIONS_PER_PAGE = 10;
+    const [sessionExamFilter, setSessionExamFilter] = useState<string>("All");
+    const [sessionPage, setSessionPage] = useState<number>(1);
+
     // Fetch user profile and examinations from backend GET /examination
     const { useGetUserExaminations } = useExam();
     const { useGetProfile } = useUser();
@@ -107,12 +113,40 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
         (typeof window !== "undefined" ? localStorage.getItem("prepforauserid") : null) ||
         undefined;
 
+    // 1. API-driven paginated examinations for the active page & filter
+    const apiExamType = sessionExamFilter !== "All" ? sessionExamFilter.toLowerCase() : undefined;
+
     const {
-        data: examinationsResponse,
-        isLoading: isExamsLoading,
-    } = useGetUserExaminations({
-        user_id: userId,
-    });
+        data: paginatedExamResponse,
+        isLoading: isPaginatedLoading,
+        isFetching: isPaginatedFetching,
+    } = useGetUserExaminations(
+        {
+            user_id: userId,
+            page: sessionPage,
+            limit: SESSIONS_PER_PAGE,
+            exam_type: apiExamType,
+        },
+        {
+            name: ["user_examinations_paginated"],
+            pagination: true,
+        }
+    );
+
+    // 2. Cached summary query for subject cards progress and category counts
+    const {
+        data: allUserExaminationsResponse,
+        isLoading: isAllExamsLoading,
+    } = useGetUserExaminations(
+        {
+            user_id: userId,
+            limit: 100,
+        },
+        {
+            name: ["user_examinations_summary"],
+            pagination: false,
+        }
+    );
 
     // Local state for cached recent examinations
     const [localExams, setLocalExams] = useState<ActiveExamSession[]>([]);
@@ -132,64 +166,134 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
         }
     }, []);
 
-    // Combine backend and local examinations
-    const allExaminations = useMemo<ActiveExamSession[]>(() => {
-        const examMap = new Map<string, ActiveExamSession>();
+    // Extract pagination metadata from API response
+    const apiPagination =
+        paginatedExamResponse?.pagination ||
+        (paginatedExamResponse as any)?.data?.pagination;
 
-        // 1. Add local exams first
+    const rawCurrentPageList: IExaminationReturn[] = useMemo(() => {
+        const raw = paginatedExamResponse?.data;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray((raw as any)?.items)) return (raw as any).items;
+        if (Array.isArray((raw as any)?.data)) return (raw as any).data;
+        return [];
+    }, [paginatedExamResponse]);
+
+    // Format current page sessions, merging local in-progress metadata for matching IDs
+    const currentPageSessions: ActiveExamSession[] = useMemo(() => {
+        if (!rawCurrentPageList || rawCurrentPageList.length === 0) {
+            if (localExams.length > 0 && !paginatedExamResponse) {
+                const filteredLocal = sessionExamFilter === "All"
+                    ? localExams
+                    : localExams.filter((e) => normalizeExamKey(e.exam_type) === normalizeExamKey(sessionExamFilter));
+                const start = (sessionPage - 1) * SESSIONS_PER_PAGE;
+                return filteredLocal.slice(start, start + SESSIONS_PER_PAGE);
+            }
+            return [];
+        }
+
+        return rawCurrentPageList.map((item) => {
+            const primarySubject = item.subjects?.[0] || "english";
+            const totalQ = item.total_question || 20;
+            const answeredQ = item.total_questions_answered || 0;
+            const pct = totalQ > 0 ? Math.min(100, Math.round((answeredQ / totalQ) * 100)) : 0;
+            const localMatch = localExams.find((l) => l.id === item.id);
+
+            return {
+                id: item.id,
+                subject: primarySubject,
+                subjectTitle: localMatch?.subjectTitle || formatSubjectName(primarySubject),
+                exam_type: item.exam_type || "utme",
+                exam_year: item.exam_year || "2024",
+                total_question: totalQ,
+                total_questions_answered: Math.max(answeredQ, localMatch?.total_questions_answered || 0),
+                total_score: item.total_score ?? localMatch?.total_score ?? 0,
+                percent: Math.max(pct, localMatch?.percent || 0),
+                updated_at: item.updated_at || item.created_at || new Date().toISOString(),
+            };
+        });
+    }, [rawCurrentPageList, localExams, paginatedExamResponse, sessionExamFilter, sessionPage]);
+
+    // Total exams count provided by API pagination
+    const totalExams = useMemo(() => {
+        if (typeof apiPagination?.total === "number") {
+            return apiPagination.total;
+        }
+        if (rawCurrentPageList.length > 0) {
+            return rawCurrentPageList.length;
+        }
+        if (localExams.length > 0) {
+            const filteredLocal = sessionExamFilter === "All"
+                ? localExams
+                : localExams.filter((e) => normalizeExamKey(e.exam_type) === normalizeExamKey(sessionExamFilter));
+            return filteredLocal.length;
+        }
+        return 0;
+    }, [apiPagination, rawCurrentPageList, localExams, sessionExamFilter]);
+
+    const totalSessionPages = Math.max(1, Math.ceil(totalExams / SESSIONS_PER_PAGE));
+    const safePage = Math.min(Math.max(1, sessionPage), totalSessionPages);
+    const hasAnyExams = totalExams > 0 || currentPageSessions.length > 0 || localExams.length > 0;
+
+    const handleExamFilterChange = (type: string) => {
+        setSessionExamFilter(type);
+        setSessionPage(1);
+    };
+
+    // Filter categories & counts derived stably from allUserExaminations and localExams
+    const { sessionExamTypes, examCounts } = useMemo(() => {
+        const rawSummary = allUserExaminationsResponse?.data;
+        const summaryList: any[] = Array.isArray(rawSummary)
+            ? rawSummary
+            : Array.isArray((rawSummary as any)?.items)
+                ? (rawSummary as any).items
+                : [];
+
+        const allMap = new Map<string, string>();
+        summaryList.forEach((item) => {
+            if (item && item.id && item.exam_type) {
+                allMap.set(item.id, item.exam_type.toUpperCase());
+            }
+        });
         localExams.forEach((item) => {
-            if (item && item.id) {
-                examMap.set(item.id, {
-                    ...item,
-                    subjectTitle: item.subjectTitle || formatSubjectName(item.subject),
-                });
+            if (item && item.id && item.exam_type) {
+                allMap.set(item.id, item.exam_type.toUpperCase());
             }
         });
 
-        // 2. Merge backend API exams (GET /examination)
-        const rawData = examinationsResponse?.data;
-        const apiList = Array.isArray(rawData)
-            ? rawData
-            : Array.isArray((rawData as any)?.items)
-                ? (rawData as any).items
-                : [];
+        const types = new Set<string>();
+        const counts: Record<string, number> = { All: allMap.size };
 
-        if (Array.isArray(apiList)) {
-            apiList.forEach((item) => {
-                if (item && item.id) {
-                    const primarySubject = item.subjects?.[0] || "english";
-                    const totalQ = item.total_question || 20;
-                    const answeredQ = item.total_questions_answered || 0;
-                    const pct = totalQ > 0 ? Math.min(100, Math.round((answeredQ / totalQ) * 100)) : 0;
-                    const existing = examMap.get(item.id);
+        allMap.forEach((examType) => {
+            types.add(examType);
+            counts[examType] = (counts[examType] || 0) + 1;
+        });
 
-                    examMap.set(item.id, {
-                        id: item.id,
-                        subject: primarySubject,
-                        subjectTitle: existing?.subjectTitle || formatSubjectName(primarySubject),
-                        exam_type: item.exam_type || "utme",
-                        exam_year: item.exam_year || "2024",
-                        total_question: totalQ,
-                        total_questions_answered: Math.max(answeredQ, existing?.total_questions_answered || 0),
-                        total_score: item.total_score ?? existing?.total_score ?? 0,
-                        percent: Math.max(pct, existing?.percent || 0),
-                        updated_at: item.updated_at || item.created_at || new Date().toISOString(),
-                    });
-                }
-            });
+        if (counts.All === 0 && totalExams > 0) {
+            counts.All = totalExams;
         }
 
-        return Array.from(examMap.values()).sort(
-            (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        );
-    }, [localExams, examinationsResponse]);
+        return {
+            sessionExamTypes: ["All", ...Array.from(types)],
+            examCounts: counts,
+        };
+    }, [allUserExaminationsResponse, localExams, totalExams]);
 
-    // Sessions filtered specifically for the navbar-selected exam
-    const currentExamSessions = useMemo(() => {
-        return allExaminations.filter(
-            (session) => normalizeExamKey(session.exam_type) === normalizeExamKey(navbarExam)
-        );
-    }, [allExaminations, navbarExam]);
+    const pageNumbers = useMemo(() => {
+        const pages: number[] = [];
+        if (totalSessionPages <= 5) {
+            for (let i = 1; i <= totalSessionPages; i++) pages.push(i);
+        } else {
+            if (safePage <= 3) {
+                pages.push(1, 2, 3, 4, 5);
+            } else if (safePage >= totalSessionPages - 2) {
+                for (let i = totalSessionPages - 4; i <= totalSessionPages; i++) pages.push(i);
+            } else {
+                pages.push(safePage - 2, safePage - 1, safePage, safePage + 1, safePage + 2);
+            }
+        }
+        return pages;
+    }, [totalSessionPages, safePage]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -204,12 +308,64 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
 
     // Merge examinations onto default subject cards
     const subjectsWithProgress: SubjectCardData[] = useMemo(() => {
+        const examMap = new Map<string, ActiveExamSession>();
+
+        // 1. Add local exams first
+        localExams.forEach((item) => {
+            if (item && item.id) {
+                examMap.set(item.id, {
+                    ...item,
+                    subjectTitle: item.subjectTitle || formatSubjectName(item.subject),
+                });
+            }
+        });
+
+        // 2. Add summary exams from backend
+        const rawSummary = allUserExaminationsResponse?.data;
+        const summaryList: any[] = Array.isArray(rawSummary)
+            ? rawSummary
+            : Array.isArray((rawSummary as any)?.items)
+                ? (rawSummary as any).items
+                : [];
+
+        summaryList.forEach((item) => {
+            if (item && item.id) {
+                const primarySubject = item.subjects?.[0] || "english";
+                const totalQ = item.total_question || 20;
+                const answeredQ = item.total_questions_answered || 0;
+                const pct = totalQ > 0 ? Math.min(100, Math.round((answeredQ / totalQ) * 100)) : 0;
+                const existing = examMap.get(item.id);
+
+                examMap.set(item.id, {
+                    id: item.id,
+                    subject: primarySubject,
+                    subjectTitle: existing?.subjectTitle || formatSubjectName(primarySubject),
+                    exam_type: item.exam_type || "utme",
+                    exam_year: item.exam_year || "2024",
+                    total_question: totalQ,
+                    total_questions_answered: Math.max(answeredQ, existing?.total_questions_answered || 0),
+                    total_score: item.total_score ?? existing?.total_score ?? 0,
+                    percent: Math.max(pct, existing?.percent || 0),
+                    updated_at: item.updated_at || item.created_at || new Date().toISOString(),
+                });
+            }
+        });
+
+        // 3. Add current page items in case of fresh progress
+        currentPageSessions.forEach((item) => {
+            if (item && item.id) {
+                examMap.set(item.id, item);
+            }
+        });
+
+        const allKnownExams = Array.from(examMap.values());
+
         return DEFAULT_SUBJECTS.map((subject) => {
             const normalizedCardSubject = normalizeSubjectKey(subject.name);
             const normalizedCardExam = normalizeExamKey(subject.exam || "");
 
             // Look for matching active exam
-            const matchingExam = allExaminations.find((ex) => {
+            const matchingExam = allKnownExams.find((ex) => {
                 const subMatch = normalizeSubjectKey(ex.subject) === normalizedCardSubject;
                 const examMatch = normalizeExamKey(ex.exam_type) === normalizedCardExam;
                 return subMatch && examMatch;
@@ -228,7 +384,7 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
 
             return subject;
         });
-    }, [allExaminations]);
+    }, [localExams, allUserExaminationsResponse, currentPageSessions]);
 
     // Sort subjects so that the navbar-selected exam is what they see first
     const sortedSubjects = useMemo(() => {
@@ -313,7 +469,7 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
                 <CustomText type="headline-sm" className="text-neutral-900 font-bold">
                     My Practice Hub
                 </CustomText>
-                {isExamsLoading && (
+                {(isPaginatedLoading || isPaginatedFetching) && (
                     <span className="text-xs text-neutral-400 animate-pulse">
                         Syncing examinations...
                     </span>
@@ -321,25 +477,52 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
             </div>
 
             {/* Exams Done / In-Progress Practice Sessions */}
-            {currentExamSessions.length > 0 ? (
+            {hasAnyExams ? (
                 <div className="w-full bg-gradient-to-r from-primary-50/70 via-white to-blue-50/50 border border-primary-100 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col gap-4">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex items-center gap-2.5">
                             <span className="w-2.5 h-2.5 rounded-full bg-primary-400 animate-pulse" />
                             <h3 className="font-bold text-base sm:text-lg text-neutral-900">
-                                {navbarExamName} Exams Done &amp; In Progress
+                                {sessionExamFilter === "All"
+                                    ? "Exams Done & In Progress"
+                                    : `${sessionExamFilter} Exams Done & In Progress`}
                             </h3>
                             <span className="px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-400 text-xs font-bold">
-                                {currentExamSessions.length} {currentExamSessions.length === 1 ? "Exam" : "Exams"}
+                                {totalExams}{" "}
+                                {totalExams === 1 ? "Exam" : "Exams"}
                             </span>
                         </div>
+
+                        {/* Filter Pills when multiple exam types exist */}
+                        {sessionExamTypes.length > 2 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                {sessionExamTypes.map((type) => {
+                                    const count = examCounts[type] || 0;
+                                    const isSelected = sessionExamFilter === type;
+                                    return (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => handleExamFilterChange(type)}
+                                            className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${isSelected
+                                                ? "bg-primary-300 text-white shadow-2xs"
+                                                : "bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-200"
+                                                }`}
+                                        >
+                                            {type} ({count})
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         <span className="text-xs text-neutral-500 hidden sm:inline-block">
                             Your answered questions and scores are saved in real-time.
                         </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {currentExamSessions.slice(0, 3).map((session) => (
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-200 ${isPaginatedFetching ? "opacity-75" : "opacity-100"}`}>
+                        {currentPageSessions.map((session) => (
                             <div
                                 key={session.id}
                                 className="bg-white border border-[#E2EAF4] hover:border-primary-300 rounded-2xl p-4 flex flex-col justify-between gap-3 shadow-xs hover:shadow-sm transition-all duration-200"
@@ -408,17 +591,82 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
                             </div>
                         ))}
                     </div>
+
+                    {/* Pagination Bar (shows 5 at a time) */}
+                    {totalSessionPages > 1 && (
+                        <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-primary-100/70 mt-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-neutral-600 font-medium">
+                                    Showing {totalExams === 0 ? 0 : (safePage - 1) * SESSIONS_PER_PAGE + 1}–{Math.min(safePage * SESSIONS_PER_PAGE, totalExams)} of {totalExams} exams
+                                </span>
+                                {isPaginatedFetching && (
+                                    <span className="text-[11px] text-primary-400 font-medium animate-pulse">
+                                        Syncing...
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                                {/* Previous Page Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setSessionPage((p) => Math.max(1, p - 1))}
+                                    disabled={safePage <= 1 || isPaginatedFetching}
+                                    className="h-8 px-2.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-neutral-700 flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="15 18 9 12 15 6" />
+                                    </svg>
+                                    <span className="hidden xs:inline">Prev</span>
+                                </button>
+
+                                {/* Page Number Buttons */}
+                                {pageNumbers.map((pageNum) => {
+                                    const isActive = pageNum === safePage;
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            type="button"
+                                            onClick={() => setSessionPage(pageNum)}
+                                            disabled={isPaginatedFetching}
+                                            className={`w-8 h-8 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center ${isActive
+                                                ? "bg-primary-300 text-white shadow-2xs"
+                                                : "bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200"
+                                                } ${isPaginatedFetching ? "cursor-wait" : ""}`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+
+                                {/* Next Page Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setSessionPage((p) => Math.min(totalSessionPages, p + 1))}
+                                    disabled={safePage >= totalSessionPages || isPaginatedFetching}
+                                    className="h-8 px-2.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-neutral-700 flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                >
+                                    <span className="hidden xs:inline">Next</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="9 18 15 12 9 6" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : isPaginatedLoading || isAllExamsLoading ? (
+                <div className="w-full bg-white border border-[#E2EAF4] rounded-3xl p-8 sm:p-12 shadow-xs flex flex-col items-center justify-center min-h-[160px] animate-pulse">
+                    <span className="text-xs text-neutral-400">Loading examinations...</span>
                 </div>
             ) : (
                 <div className="w-full bg-white border border-[#E2EAF4] rounded-3xl p-8 sm:p-12 shadow-xs flex flex-col items-center justify-center min-h-[220px]">
                     <EmptyState
-                        title={`No ${navbarExamName} exams done yet`}
-                        description={`To help Prepfora calculate how well you are doing, start practicing ${navbarExamName} subjects.`}
-                        btnText={`Start ${navbarExamName} Practice`}
+                        title="No exams done yet"
+                        description="To help Prepfora calculate how well you are doing, start practicing subjects."
+                        btnText="Start Practice"
                         onClick={() => {
-                            const firstSub = sortedSubjects.find(
-                                (s) => normalizeExamKey(s.exam || "") === normalizeExamKey(navbarExam)
-                            ) || sortedSubjects[0];
+                            const firstSub = sortedSubjects[0];
                             if (firstSub) {
                                 handleContinuePractice(firstSub);
                             }
@@ -506,8 +754,8 @@ export default function PracticeHub({ onStartPractice }: PracticeHubProps = {}) 
                                             setIsDropdownOpen(false);
                                         }}
                                         className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${selectedExam === exam
-                                                ? "bg-primary-50 text-primary-300 font-semibold"
-                                                : "text-neutral-700 hover:bg-neutral-50"
+                                            ? "bg-primary-50 text-primary-300 font-semibold"
+                                            : "text-neutral-700 hover:bg-neutral-50"
                                             }`}
                                     >
                                         {exam}

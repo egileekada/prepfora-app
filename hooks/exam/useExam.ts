@@ -123,23 +123,37 @@ const useExam = () => {
         onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
     });
 
-    const useGetUserExaminations = (params?: {
-        user_id?: string;
-        subject?: string;
-        exam_type?: string;
-        year?: string;
-        type?: string;
-        page?: number;
-        limit?: number;
-    }) => {
-        return useUnsecureFetchDataNoCache<{
-            success: boolean;
-            message: string;
-            data: IExaminationReturn[];
-        }>({
+    const useGetUserExaminations = (
+        params?: {
+            user_id?: string;
+            subject?: string;
+            exam_type?: string;
+            year?: string;
+            type?: string;
+            page?: number;
+            limit?: number;
+        },
+        options?: {
+            name?: string[];
+            enable?: boolean;
+            pagination?: boolean;
+        }
+    ) => {
+        const cleanParams: Record<string, unknown> = {};
+        if (params) {
+            Object.entries(params).forEach(([key, val]) => {
+                if (val !== undefined && val !== null && val !== "") {
+                    cleanParams[key] = val;
+                }
+            });
+        }
+
+        return useUnsecureFetchDataNoCache<PaginatedResponse<IExaminationReturn[]>>({
             endpoint: URLS.EXAMINATION,
-            name: [URLS.EXAMINATION],
-            params: params as Record<string, unknown>,
+            name: options?.name ?? [URLS.EXAMINATION],
+            params: cleanParams,
+            pagination: options?.pagination ?? true,
+            enable: options?.enable ?? true,
         });
     };
 
