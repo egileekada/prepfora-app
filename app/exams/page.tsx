@@ -7,6 +7,7 @@ import {
     QuestionNavigator,
     QuestionRenderer,
     ExamSummaryModal,
+    ExamCalculator,
     MOCK_EXAM_QUESTIONS,
     QuestionStatus,
     QuestionResult,
@@ -159,6 +160,26 @@ function ExamContent() {
     const [statuses, setStatuses] = useState<Record<number, QuestionStatus>>({});
     const [isSummaryOpen, setIsSummaryOpen] = useState<boolean>(false);
     const [isNavigatorOpen, setIsNavigatorOpen] = useState<boolean>(false);
+
+    // Math exam check & On-screen Calculator state
+    const isMathSubject = useMemo(() => {
+        const sub = (subjectParam || "").toLowerCase();
+        const title = (subjectTitleParam || "").toLowerCase();
+        return (
+            sub.includes("math") ||
+            sub.includes("further") ||
+            title.includes("math") ||
+            title.includes("further")
+        );
+    }, [subjectParam, subjectTitleParam]);
+
+    const [isCalculatorOpen, setIsCalculatorOpen] = useState<boolean>(false);
+
+    useEffect(() => {
+        if (isMathSubject) {
+            setIsCalculatorOpen(true);
+        }
+    }, [isMathSubject]);
 
     // Restore existing examination progress & answers from backend (GET /examination/{id}) and local storage
     useEffect(() => {
@@ -531,6 +552,9 @@ function ExamContent() {
                 <ExamHeader
                     subjectTitle={displaySubjectTitle}
                     initialSeconds={initialTotalSeconds}
+                    showCalculator={isMathSubject}
+                    isCalculatorOpen={isCalculatorOpen}
+                    onToggleCalculator={() => setIsCalculatorOpen((prev) => !prev)}
                     onEndSession={() => {
                         persistAnswerToBackend(answers);
                         setIsSummaryOpen(true);
@@ -604,6 +628,14 @@ function ExamContent() {
                 prepPoints={calculatedPrepPoints}
                 results={dynamicResults}
             />
+
+            {/* On-Screen Calculator for Math exams */}
+            {isMathSubject && (
+                <ExamCalculator
+                    isOpen={isCalculatorOpen}
+                    onClose={() => setIsCalculatorOpen(false)}
+                />
+            )}
         </div>
     );
 }

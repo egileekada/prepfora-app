@@ -223,13 +223,15 @@ export default function StartPracticeModal({
 
     const subjectTitle = `${selectedSubjectDisplayName} Practice`;
 
+    const isSchoolRequired = !["waec", "neco", "utme"].includes(selectedExamType.trim().toLowerCase());
+
     const handleBack = () => {
         if (step === "subject") {
             onClose();
         } else if (step === "school") {
             setStep("subject");
         } else if (step === "questions") {
-            setStep("school");
+            setStep(isSchoolRequired ? "school" : "subject");
         } else if (step === "time") {
             setStep("questions");
         } else if (step === "summary") {
@@ -239,7 +241,7 @@ export default function StartPracticeModal({
 
     const handleContinue = () => {
         if (step === "subject") {
-            setStep("school");
+            setStep(isSchoolRequired ? "school" : "questions");
         } else if (step === "school") {
             setStep("questions");
         } else if (step === "questions") {
@@ -265,7 +267,7 @@ export default function StartPracticeModal({
                 subjectDisplayName: selectedSubjectDisplayName,
                 examType: selectedExamType,
                 year: selectedYear,
-                school: selectedSchool,
+                school: isSchoolRequired ? selectedSchool : "",
                 questionCount,
                 time: { hours, minutes, seconds },
             };
@@ -280,7 +282,7 @@ export default function StartPracticeModal({
                     type: selectedExamType.toLowerCase(),
                     year: selectedYear,
                     limit: String(questionCount),
-                    school: selectedSchool,
+                    ...(isSchoolRequired && selectedSchool ? { school: selectedSchool } : {}),
                     hours: String(hours),
                     minutes: String(minutes),
                     seconds: String(seconds),
@@ -625,7 +627,7 @@ export default function StartPracticeModal({
                 )}
 
                 {/* Step 2: Choose your school */}
-                {step === "school" && (
+                {step === "school" && isSchoolRequired && (
                     <div className="flex flex-col gap-6">
                         <div>
                             <h2 className="text-xl font-bold text-neutral-900">
@@ -782,11 +784,10 @@ export default function StartPracticeModal({
                                     setMinutes(rec.minutes);
                                     setSeconds(rec.seconds);
                                 }}
-                                className={`pb-2.5 px-4 sm:px-6 text-sm sm:text-base font-semibold transition-all relative cursor-pointer ${
-                                    timeTab === "recommended"
-                                        ? "text-primary-300"
-                                        : "text-neutral-900 hover:text-neutral-600"
-                                }`}
+                                className={`pb-2.5 px-4 sm:px-6 text-sm sm:text-base font-semibold transition-all relative cursor-pointer ${timeTab === "recommended"
+                                    ? "text-primary-300"
+                                    : "text-neutral-900 hover:text-neutral-600"
+                                    }`}
                             >
                                 Recommended Time
                                 {timeTab === "recommended" && (
@@ -796,11 +797,10 @@ export default function StartPracticeModal({
                             <button
                                 type="button"
                                 onClick={() => setTimeTab("custom")}
-                                className={`pb-2.5 px-4 sm:px-6 text-sm sm:text-base font-semibold transition-all relative cursor-pointer ${
-                                    timeTab === "custom"
-                                        ? "text-primary-300"
-                                        : "text-neutral-900 hover:text-neutral-600"
-                                }`}
+                                className={`pb-2.5 px-4 sm:px-6 text-sm sm:text-base font-semibold transition-all relative cursor-pointer ${timeTab === "custom"
+                                    ? "text-primary-300"
+                                    : "text-neutral-900 hover:text-neutral-600"
+                                    }`}
                             >
                                 Set Time
                                 {timeTab === "custom" && (
@@ -1000,10 +1000,12 @@ export default function StartPracticeModal({
                                 <span className="text-neutral-900 font-bold">{selectedExamType} ({selectedYear})</span>
                             </div>
 
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-neutral-500 font-medium">School / Institution</span>
-                                <span className="text-neutral-900 font-bold truncate max-w-[200px]">{selectedSchool}</span>
-                            </div>
+                            {isSchoolRequired && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-neutral-500 font-medium">School / Institution</span>
+                                    <span className="text-neutral-900 font-bold truncate max-w-[200px]">{selectedSchool}</span>
+                                </div>
+                            )}
 
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-neutral-500 font-medium">Questions</span>
