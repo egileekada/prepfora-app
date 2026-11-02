@@ -7,7 +7,7 @@ import { FormikProvider } from "formik";
 
 export default function RegistrationForm() {
 
-    const { formikRegister: formik } = useAuth();
+    const { formikRegister: formik, isLoading } = useAuth();
 
     return (
         <FormikProvider value={formik}>
@@ -17,7 +17,13 @@ export default function RegistrationForm() {
                     <FormikField placeholder="janedoe@mail.com" name="confirm_email" label="Confirm Email*" />
                 </div>
                 <div className="flex flex-col gap-3.5 sm:gap-4 w-full">
-                    <CustomButton fullWidth type="submit" disabled={!formik.isValid} variant={!formik.isValid ? "primary" : "disabled"}>
+                    <CustomButton
+                        fullWidth
+                        type="submit"
+                        loading={isLoading}
+                        disabled={!formik.isValid || isLoading}
+                        variant={!formik.isValid ? "primary" : "disabled"}
+                    >
                         Continue
                     </CustomButton>
                     <GoogleBtn />

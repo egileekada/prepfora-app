@@ -1,6 +1,8 @@
 
 export interface IAuth {
     email: string;
+    referral_code?: string | null;
+    affiliate_code?: string | null;
 }
 
 export interface IAuthOtp {
@@ -13,6 +15,8 @@ export interface IGoogleAuthPayload {
     email?: string | null;
     first_name?: string | null;
     last_name?: string | null;
+    referral_code?: string | null;
+    affiliate_code?: string | null;
 }
 
 export interface IAuthUser {
