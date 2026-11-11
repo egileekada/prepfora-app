@@ -1,23 +1,35 @@
 "use client";
 
 import React from "react";
+import {
+    MockExamTypeLabel,
+    MockSubjectBreakdownItem,
+} from "@/components/feature/dashboard/mockExams/mockExamTypes";
 
 interface RulesOfEngagementCardProps {
-    exam: "JAMB" | "WAEC" | "POST UTME" | "NECO";
+    exam: MockExamTypeLabel;
+    subjects: MockSubjectBreakdownItem[];
+    year: string;
+    totalQuestions: number;
+    durationMinutes: number;
     onStartExam: () => void;
 }
 
 export default function RulesOfEngagementCard({
     exam,
+    subjects,
+    year,
+    totalQuestions,
+    durationMinutes,
     onStartExam,
 }: RulesOfEngagementCardProps) {
-    const isWAEC = exam === "WAEC" || exam === "NECO";
+    const isWAECOrNECO = exam === "WAEC" || exam === "NECO";
 
     return (
         <div className="w-full max-w-[760px] mx-auto bg-white rounded-3xl p-6 sm:p-10 shadow-xs border border-neutral-150 flex flex-col">
             {/* Exam Emblem / Seal */}
             <div className="flex justify-center mb-1">
-                {isWAEC ? (
+                {isWAECOrNECO ? (
                     <div className="w-10 h-10 rounded-full bg-[#3B1F54] flex items-center justify-center text-amber-400 font-bold text-sm shadow-xs border border-amber-300">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3L12 16.1 7.2 16.6l.9-5.3-3.8-3.7 5.3-.8L12 2z" />
@@ -55,47 +67,44 @@ export default function RulesOfEngagementCard({
                 {/* Left Column: Exam Breakdown */}
                 <div className="flex flex-col gap-2">
                     <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                        EXAM BREAKDOWN
+                        EXAM BREAKDOWN ({year})
                     </span>
 
-                    {/* JAMB: 4 subjects */}
-                    {!isWAEC ? (
+                    {subjects.length > 1 ? (
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
-                                <span className="text-xs text-neutral-700 font-medium">Use of English</span>
-                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">60 Qs</span>
-                            </div>
-                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
-                                <span className="text-xs text-neutral-700 font-medium">Mathematics</span>
-                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">40 Qs</span>
-                            </div>
-                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
-                                <span className="text-xs text-neutral-700 font-medium">Physics</span>
-                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">40 Qs</span>
-                            </div>
-                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
-                                <span className="text-xs text-neutral-700 font-medium">Chemistry</span>
-                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">40 Qs</span>
-                            </div>
+                            {subjects.map((sub) => (
+                                <div
+                                    key={sub.name}
+                                    className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between"
+                                >
+                                    <span className="text-xs text-neutral-700 font-medium line-clamp-2">
+                                        {sub.displayName}
+                                    </span>
+                                    <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">
+                                        {sub.questionCount} Qs
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     ) : (
-                        /* WAEC: Subject, Year, Objective, Theory */
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
                                 <span className="text-xs text-neutral-500 font-medium">Subject</span>
-                                <span className="text-sm font-bold text-neutral-900 mt-2">English Language</span>
+                                <span className="text-sm font-bold text-neutral-900 mt-2">
+                                    {subjects[0]?.displayName || "Selected Subject"}
+                                </span>
                             </div>
                             <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
                                 <span className="text-xs text-neutral-500 font-medium">Year</span>
-                                <span className="text-sm font-bold text-neutral-900 mt-2">2024</span>
+                                <span className="text-sm font-bold text-neutral-900 mt-2">{year}</span>
                             </div>
-                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
-                                <span className="text-xs text-neutral-700 font-medium">Objective</span>
-                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">60 Qs</span>
-                            </div>
-                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between">
-                                <span className="text-xs text-neutral-700 font-medium">Theory</span>
-                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">10 Qs</span>
+                            <div className="bg-[#EEF3FA] rounded-2xl p-4 flex flex-col justify-between col-span-2">
+                                <span className="text-xs text-neutral-700 font-medium">
+                                    {isWAECOrNECO ? "Objective (MCQ)" : "Questions"}
+                                </span>
+                                <span className="text-base sm:text-lg font-bold text-neutral-900 mt-2">
+                                    {subjects[0]?.questionCount ?? totalQuestions} Qs
+                                </span>
                             </div>
                         </div>
                     )}
@@ -104,7 +113,7 @@ export default function RulesOfEngagementCard({
                     <div className="bg-[#2563EB] text-white rounded-2xl p-4 flex items-center justify-between font-medium text-sm mt-1 shadow-xs">
                         <span>Total Questions</span>
                         <span className="font-extrabold text-xl">
-                            {!isWAEC ? 180 : 70}
+                            {totalQuestions}
                         </span>
                     </div>
                 </div>
@@ -120,7 +129,7 @@ export default function RulesOfEngagementCard({
                         <div className="bg-[#991B1B] rounded-2xl p-5 text-white shadow-xs">
                             <div className="flex items-baseline gap-1">
                                 <span className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-                                    120
+                                    {durationMinutes}
                                 </span>
                                 <span className="text-sm font-semibold">
                                     minutes

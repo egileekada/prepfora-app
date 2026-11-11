@@ -5,14 +5,21 @@ import { useRouter } from "next/navigation";
 import { SubjectCardData } from "./practiceSubjectCard";
 import useExam from "@/hooks/exam/useExam";
 
+export interface SelectedSubjectItem {
+    name: string;
+    displayName: string;
+}
+
 export interface PracticeConfig {
     subject: SubjectCardData | null;
     subjectName: string;
     subjectDisplayName: string;
+    subjects: SelectedSubjectItem[];
     examType: string;
     year: string;
     school: string;
     questionCount: number;
+    questionsPerSubject?: number;
     time: {
         hours: number;
         minutes: number;
@@ -25,7 +32,7 @@ interface StartPracticeModalProps {
     onClose: () => void;
     subject?: SubjectCardData | null;
     initialExamType?: string;
-    onStartPractice?: (config: PracticeConfig) => void;
+    onStartPractice?: (config: PracticeConfig) => void | Promise<void>;
 }
 
 type ModalStep = "subject" | "school" | "questions" | "time" | "summary";
@@ -78,14 +85,15 @@ export default function StartPracticeModal({
     onStartPractice,
 }: StartPracticeModalProps) {
     const router = useRouter();
-    const { useGetSubject } = useExam();
+    const { useGetSubject, checkMultiSubjectQuestions } = useExam();
     const { data: subjectsData, isLoading: isSubjectsLoading } = useGetSubject();
 
     const [step, setStep] = useState<ModalStep>("subject");
 
     // Form states
-    const [selectedSubjectName, setSelectedSubjectName] = useState<string>("english");
-    const [selectedSubjectDisplayName, setSelectedSubjectDisplayName] = useState<string>("English Language");
+    const [selectedSubjects, setSelectedSubjects] = useState<SelectedSubjectItem[]>([
+        { name: "english", displayName: "English Language" },
+    ]);
     const [selectedExamType, setSelectedExamType] = useState<string>("UTME");
     const [selectedYear, setSelectedYear] = useState<string>("2020");
     const [selectedSchool, setSelectedSchool] = useState<string>("Obafemi Awolowo University");
@@ -98,6 +106,8 @@ export default function StartPracticeModal({
     const [minutesInput, setMinutesInput] = useState<string>("10");
     const [secondsInput, setSecondsInput] = useState<string>("00");
     const [started, setStarted] = useState<boolean>(false);
+    const [isCheckingSubmit, setIsCheckingSubmit] = useState<boolean>(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     // Dropdown open states
     const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
@@ -109,11 +119,24 @@ export default function StartPracticeModal({
     const examTypeDropdownRef = useRef<HTMLDivElement>(null);
     const yearDropdownRef = useRef<HTMLDivElement>(null);
     const schoolDropdownRef = useRef<HTMLDivElement>(null);
+    const wasOpenRef = useRef(false);
 
     // Subjects list from backend response
     const subjectsList = useMemo(() => {
         return subjectsData?.data?.subjects || [];
     }, [subjectsData?.data?.subjects]);
+
+    const isUtmeExam = selectedExamType.trim().toLowerCase() === "utme";
+    const requiredSubjectCount = isUtmeExam ? 4 : 1;
+    const hasRequiredSubjects = selectedSubjects.length === requiredSubjectCount;
+    const subjectCount = Math.max(1, selectedSubjects.length);
+    const totalQuestionCount = questionCount * subjectCount;
+
+    const selectedSubjectName = selectedSubjects[0]?.name || "english";
+    const selectedSubjectDisplayName =
+        selectedSubjects.length > 0
+            ? selectedSubjects.map((s) => s.displayName).join(", ")
+            : "Select Subject";
 
     // Keep input strings synchronized with numeric hours/minutes/seconds
     useEffect(() => {
@@ -122,9 +145,17 @@ export default function StartPracticeModal({
         setSecondsInput(String(seconds).padStart(2, "0"));
     }, [hours, minutes, seconds]);
 
-    // Synchronize initial selection when modal opens or propSubject changes
+    // Synchronize initial selection when modal opens
     useEffect(() => {
-        if (isOpen) {
+        if (!isOpen) {
+            wasOpenRef.current = false;
+            return;
+        }
+
+        const isOpening = !wasOpenRef.current;
+        wasOpenRef.current = true;
+
+        if (isOpening) {
             setStep("subject");
             setQuestionCount(20);
             const defaultRec = getRecommendedTime(20);
@@ -140,6 +171,26 @@ export default function StartPracticeModal({
             setIsYearDropdownOpen(false);
             setIsSchoolDropdownOpen(false);
             setStarted(false);
+            setIsCheckingSubmit(false);
+            setSubmitError(null);
+
+            let resolvedExam = "UTME";
+            if (propSubject?.exam) {
+                const matchedExam = EXAM_TYPE_OPTIONS.find(
+                    (e) => e.toLowerCase() === propSubject.exam?.toLowerCase()
+                );
+                if (matchedExam) resolvedExam = matchedExam;
+            } else if (initialExamType) {
+                const cleanInit = initialExamType.toLowerCase();
+                const matchedExam = EXAM_TYPE_OPTIONS.find(
+                    (e) =>
+                        e.toLowerCase() === cleanInit ||
+                        (cleanInit === "jamb" && e.toLowerCase() === "utme") ||
+                        (cleanInit.includes("post") && e.toLowerCase().includes("post"))
+                );
+                if (matchedExam) resolvedExam = matchedExam;
+            }
+            setSelectedExamType(resolvedExam);
 
             if (propSubject?.name) {
                 const cleanName = propSubject.name.trim().toLowerCase();
@@ -149,8 +200,9 @@ export default function StartPracticeModal({
                         s.displayName.toLowerCase() === cleanName
                 );
                 if (matched) {
-                    setSelectedSubjectName(matched.name);
-                    setSelectedSubjectDisplayName(matched.displayName);
+                    setSelectedSubjects([
+                        { name: matched.name, displayName: matched.displayName },
+                    ]);
                 } else {
                     const slug = cleanName.includes("math")
                         ? "mathematics"
@@ -163,42 +215,35 @@ export default function StartPracticeModal({
                                     : cleanName.includes("chem")
                                         ? "chemistry"
                                         : cleanName;
-                    setSelectedSubjectName(slug);
-                    setSelectedSubjectDisplayName(propSubject.name);
+                    setSelectedSubjects([
+                        { name: slug, displayName: propSubject.name },
+                    ]);
                 }
-
-                if (propSubject.exam) {
-                    const matchedExam = EXAM_TYPE_OPTIONS.find(
-                        (e) => e.toLowerCase() === propSubject.exam?.toLowerCase()
-                    );
-                    if (matchedExam) setSelectedExamType(matchedExam);
-                } else if (initialExamType) {
-                    const cleanInit = initialExamType.toLowerCase();
-                    const matchedExam = EXAM_TYPE_OPTIONS.find(
-                        (e) =>
-                            e.toLowerCase() === cleanInit ||
-                            (cleanInit === "jamb" && e.toLowerCase() === "utme") ||
-                            (cleanInit.includes("post") && e.toLowerCase().includes("post"))
-                    );
-                    if (matchedExam) setSelectedExamType(matchedExam);
-                }
+            } else if (resolvedExam.toLowerCase() === "utme") {
+                // For UTME, start empty or with first subject so user explicitly selects 4 subjects
+                setSelectedSubjects([]);
             } else if (subjectsList.length > 0) {
-                setSelectedSubjectName(subjectsList[0].name);
-                setSelectedSubjectDisplayName(subjectsList[0].displayName);
-
-                if (initialExamType) {
-                    const cleanInit = initialExamType.toLowerCase();
-                    const matchedExam = EXAM_TYPE_OPTIONS.find(
-                        (e) =>
-                            e.toLowerCase() === cleanInit ||
-                            (cleanInit === "jamb" && e.toLowerCase() === "utme") ||
-                            (cleanInit.includes("post") && e.toLowerCase().includes("post"))
-                    );
-                    if (matchedExam) setSelectedExamType(matchedExam);
-                }
+                setSelectedSubjects([
+                    {
+                        name: subjectsList[0].name,
+                        displayName: subjectsList[0].displayName,
+                    },
+                ]);
             }
+        } else if (
+            !propSubject?.name &&
+            selectedSubjects.length === 0 &&
+            selectedExamType.toLowerCase() !== "utme" &&
+            subjectsList.length > 0
+        ) {
+            setSelectedSubjects([
+                {
+                    name: subjectsList[0].name,
+                    displayName: subjectsList[0].displayName,
+                },
+            ]);
         }
-    }, [isOpen, propSubject, initialExamType, subjectsList]);
+    }, [isOpen, propSubject, initialExamType, subjectsList, selectedExamType, selectedSubjects.length]);
 
     // Close dropdowns on click outside
     useEffect(() => {
@@ -221,11 +266,60 @@ export default function StartPracticeModal({
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const subjectTitle = `${selectedSubjectDisplayName} Practice`;
+    const subjectTitle =
+        isUtmeExam
+            ? `UTME Practice (${selectedSubjects.length}/4)`
+            : `${selectedSubjectDisplayName} Practice`;
 
     const isSchoolRequired = !["waec", "neco", "utme"].includes(selectedExamType.trim().toLowerCase());
 
+    const handleToggleSubject = (sub: { name: string; displayName: string }) => {
+        setSubmitError(null);
+        if (!isUtmeExam) {
+            setSelectedSubjects([{ name: sub.name, displayName: sub.displayName }]);
+            setIsSubjectDropdownOpen(false);
+            return;
+        }
+
+        setSelectedSubjects((prev) => {
+            const exists = prev.some((item) => item.name === sub.name);
+            if (exists) {
+                return prev.filter((item) => item.name !== sub.name);
+            }
+            if (prev.length >= 4) {
+                return prev;
+            }
+            const next = [...prev, { name: sub.name, displayName: sub.displayName }];
+            if (next.length === 4) {
+                setIsSubjectDropdownOpen(false);
+            }
+            return next;
+        });
+    };
+
+    const handleExamTypeChange = (exam: string) => {
+        setSubmitError(null);
+        setSelectedExamType(exam);
+        setIsExamTypeDropdownOpen(false);
+        const nextIsUtme = exam.trim().toLowerCase() === "utme";
+        if (!nextIsUtme) {
+            setSelectedSubjects((prev) => {
+                if (prev.length > 0) return [prev[0]];
+                if (subjectsList.length > 0) {
+                    return [
+                        {
+                            name: subjectsList[0].name,
+                            displayName: subjectsList[0].displayName,
+                        },
+                    ];
+                }
+                return [{ name: "english", displayName: "English Language" }];
+            });
+        }
+    };
+
     const handleBack = () => {
+        setSubmitError(null);
         if (step === "subject") {
             onClose();
         } else if (step === "school") {
@@ -239,13 +333,54 @@ export default function StartPracticeModal({
         }
     };
 
-    const handleContinue = () => {
+    const verifySubjectsAvailability = async (limitPerSubject: number): Promise<boolean> => {
+        setSubmitError(null);
+        setIsCheckingSubmit(true);
+
+        try {
+            const { hasQuestions, emptySubjects } = await checkMultiSubjectQuestions(
+                selectedSubjects.map((s) => s.name),
+                limitPerSubject,
+                selectedYear,
+                selectedExamType.toLowerCase()
+            );
+
+            if (!hasQuestions) {
+                const missingLabels = emptySubjects.map((slug) => {
+                    const found = selectedSubjects.find(
+                        (s) => s.name.toLowerCase() === slug.toLowerCase()
+                    );
+                    return found?.displayName || slug;
+                });
+                setSubmitError(
+                    `No questions available for ${missingLabels.join(", ")} (${selectedExamType} ${selectedYear}). Please choose another subject, exam type, or year.`
+                );
+                return false;
+            }
+            return true;
+        } catch (err) {
+            console.error("Failed to verify questions:", err);
+            setSubmitError("Unable to verify questions from the server right now. Please try again.");
+            return false;
+        } finally {
+            setIsCheckingSubmit(false);
+        }
+    };
+
+    const handleContinue = async () => {
         if (step === "subject") {
+            if (!hasRequiredSubjects || isCheckingSubmit) {
+                return;
+            }
+            const available = await verifySubjectsAvailability(1);
+            if (!available) {
+                return;
+            }
             setStep(isSchoolRequired ? "school" : "questions");
         } else if (step === "school") {
             setStep("questions");
         } else if (step === "questions") {
-            const rec = getRecommendedTime(questionCount);
+            const rec = getRecommendedTime(totalQuestionCount);
             setHours(rec.hours);
             setMinutes(rec.minutes);
             setSeconds(rec.seconds);
@@ -253,42 +388,63 @@ export default function StartPracticeModal({
             setStep("time");
         } else if (step === "time") {
             if (timeTab === "recommended") {
-                const rec = getRecommendedTime(questionCount);
+                const rec = getRecommendedTime(totalQuestionCount);
                 setHours(rec.hours);
                 setMinutes(rec.minutes);
                 setSeconds(rec.seconds);
             }
+            setSubmitError(null);
             setStep("summary");
         } else if (step === "summary") {
+            if (!hasRequiredSubjects || started || isCheckingSubmit) {
+                return;
+            }
+
+            const available = await verifySubjectsAvailability(questionCount);
+            if (!available) {
+                return;
+            }
+
             setStarted(true);
             const practiceConfig: PracticeConfig = {
                 subject: propSubject,
                 subjectName: selectedSubjectName,
                 subjectDisplayName: selectedSubjectDisplayName,
+                subjects: selectedSubjects,
                 examType: selectedExamType,
                 year: selectedYear,
                 school: isSchoolRequired ? selectedSchool : "",
-                questionCount,
+                questionCount: totalQuestionCount,
+                questionsPerSubject: questionCount,
                 time: { hours, minutes, seconds },
             };
 
-            onStartPractice?.(practiceConfig);
-
-            setTimeout(() => {
-                onClose();
-                const params = new URLSearchParams({
-                    subject: selectedSubjectName,
-                    subjectTitle: selectedSubjectDisplayName,
-                    type: selectedExamType.toLowerCase(),
-                    year: selectedYear,
-                    limit: String(questionCount),
-                    ...(isSchoolRequired && selectedSchool ? { school: selectedSchool } : {}),
-                    hours: String(hours),
-                    minutes: String(minutes),
-                    seconds: String(seconds),
-                });
-                router.push(`/exams?${params.toString()}`);
-            }, 500);
+            if (onStartPractice) {
+                try {
+                    await onStartPractice(practiceConfig);
+                } catch (err) {
+                    setStarted(false);
+                    setSubmitError("Unable to start practice session right now. Please try again.");
+                }
+            } else {
+                setTimeout(() => {
+                    onClose();
+                    const params = new URLSearchParams({
+                        subject: selectedSubjectName,
+                        subjects: selectedSubjects.map((s) => s.name).join(","),
+                        subjectTitle: selectedSubjectDisplayName,
+                        type: selectedExamType.toLowerCase(),
+                        year: selectedYear,
+                        limit: String(totalQuestionCount),
+                        perSubject: String(questionCount),
+                        ...(isSchoolRequired && selectedSchool ? { school: selectedSchool } : {}),
+                        hours: String(hours),
+                        minutes: String(minutes),
+                        seconds: String(seconds),
+                    });
+                    router.push(`/exams?${params.toString()}`);
+                }, 500);
+            }
         }
     };
 
@@ -354,7 +510,7 @@ export default function StartPracticeModal({
         }
     };
 
-    const recommendedTime = getRecommendedTime(questionCount);
+    const recommendedTime = getRecommendedTime(totalQuestionCount);
     const recHStr = String(recommendedTime.hours).padStart(2, "0");
     const recMStr = String(recommendedTime.minutes).padStart(2, "0");
     const recSStr = String(recommendedTime.seconds).padStart(2, "0");
@@ -440,15 +596,29 @@ export default function StartPracticeModal({
                                 Practice Details
                             </h2>
                             <p className="text-xs text-neutral-500 mt-1">
-                                Choose your subject, exam category, and examination year
+                                {isUtmeExam
+                                    ? "Select 4 subjects, exam category, and examination year for UTME"
+                                    : "Choose your subject, exam category, and examination year"}
                             </p>
                         </div>
 
                         {/* Subject Select Dropdown */}
                         <div className="flex flex-col gap-1.5 relative" ref={subjectDropdownRef}>
-                            <label className="text-xs font-semibold text-neutral-700">
-                                Select Subject *
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-neutral-700">
+                                    {isUtmeExam ? "Select 4 Subjects *" : "Select Subject *"}
+                                </label>
+                                {isUtmeExam && (
+                                    <span
+                                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${selectedSubjects.length === 4
+                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                            : "bg-amber-50 text-amber-700 border border-amber-200"
+                                            }`}
+                                    >
+                                        {selectedSubjects.length}/4 selected
+                                    </span>
+                                )}
+                            </div>
 
                             <button
                                 type="button"
@@ -458,7 +628,9 @@ export default function StartPracticeModal({
                                 <span className="truncate">
                                     {isSubjectsLoading
                                         ? "Loading subjects..."
-                                        : selectedSubjectDisplayName}
+                                        : isUtmeExam && selectedSubjects.length === 0
+                                            ? "Choose 4 subjects..."
+                                            : selectedSubjectDisplayName}
                                 </span>
                                 <div className="w-6 h-6 rounded-full border border-neutral-300 flex items-center justify-center flex-shrink-0 text-neutral-500">
                                     <svg
@@ -478,30 +650,70 @@ export default function StartPracticeModal({
                                 </div>
                             </button>
 
+                            {/* Selected Subjects Chips for UTME */}
+                            {isUtmeExam && selectedSubjects.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {selectedSubjects.map((sub) => (
+                                        <span
+                                            key={sub.name}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-50 text-primary-300 border border-primary-100"
+                                        >
+                                            <span>{sub.displayName}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleSubject(sub)}
+                                                className="hover:text-primary-500 cursor-pointer ml-0.5 leading-none font-bold"
+                                                aria-label={`Remove ${sub.displayName}`}
+                                            >
+                                                ×
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Dropdown Options */}
                             {isSubjectDropdownOpen && (
                                 <div className="absolute top-[72px] left-0 right-0 bg-white border border-neutral-200 rounded-xl shadow-xl max-h-56 overflow-y-auto py-1.5 z-40">
                                     {subjectsList.length > 0 ? (
-                                        subjectsList.map((sub) => (
-                                            <button
-                                                key={sub.name}
-                                                type="button"
-                                                onClick={() => {
-                                                    setSelectedSubjectName(sub.name);
-                                                    setSelectedSubjectDisplayName(sub.displayName);
-                                                    setIsSubjectDropdownOpen(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors ${selectedSubjectName === sub.name
-                                                    ? "bg-primary-50 text-primary-300 font-semibold"
-                                                    : "text-neutral-700 hover:bg-neutral-50"
-                                                    }`}
-                                            >
-                                                <span className="truncate">{sub.displayName}</span>
-                                                <span className="text-[11px] uppercase tracking-wider text-neutral-400 ml-2">
-                                                    {sub.code || sub.category}
-                                                </span>
-                                            </button>
-                                        ))
+                                        subjectsList.map((sub) => {
+                                            const isSelected = selectedSubjects.some(
+                                                (item) => item.name === sub.name
+                                            );
+                                            const isMaxReached =
+                                                isUtmeExam && !isSelected && selectedSubjects.length >= 4;
+                                            return (
+                                                <button
+                                                    key={sub.name}
+                                                    type="button"
+                                                    disabled={isMaxReached}
+                                                    onClick={() => handleToggleSubject(sub)}
+                                                    className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors ${isSelected
+                                                        ? "bg-primary-50 text-primary-300 font-semibold"
+                                                        : isMaxReached
+                                                            ? "text-neutral-400 opacity-50 cursor-not-allowed"
+                                                            : "text-neutral-700 hover:bg-neutral-50 cursor-pointer"
+                                                        }`}
+                                                >
+                                                    <span className="flex items-center gap-2.5 truncate">
+                                                        {isUtmeExam && (
+                                                            <span
+                                                                className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 text-[10px] ${isSelected
+                                                                    ? "bg-primary-300 border-primary-300 text-white"
+                                                                    : "border-neutral-300 bg-white"
+                                                                    }`}
+                                                            >
+                                                                {isSelected ? "✓" : ""}
+                                                            </span>
+                                                        )}
+                                                        <span className="truncate">{sub.displayName}</span>
+                                                    </span>
+                                                    <span className="text-[11px] uppercase tracking-wider text-neutral-400 ml-2">
+                                                        {sub.code || sub.category}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })
                                     ) : (
                                         <div className="px-4 py-3 text-xs text-neutral-500 text-center">
                                             No subjects found
@@ -546,10 +758,7 @@ export default function StartPracticeModal({
                                             <button
                                                 key={exam}
                                                 type="button"
-                                                onClick={() => {
-                                                    setSelectedExamType(exam);
-                                                    setIsExamTypeDropdownOpen(false);
-                                                }}
+                                                onClick={() => handleExamTypeChange(exam)}
                                                 className={`w-full text-left px-3 py-2 text-xs sm:text-sm transition-colors ${selectedExamType === exam
                                                     ? "bg-primary-50 text-primary-300 font-semibold"
                                                     : "text-neutral-700 hover:bg-neutral-50"
@@ -598,6 +807,7 @@ export default function StartPracticeModal({
                                                     key={index}
                                                     type="button"
                                                     onClick={() => {
+                                                        setSubmitError(null);
                                                         setSelectedYear(year);
                                                         setIsYearDropdownOpen(false);
                                                     }}
@@ -615,13 +825,31 @@ export default function StartPracticeModal({
                             </div>
                         </div>
 
+                        {/* UTME 4-Subject Validation Feedback */}
+                        {isUtmeExam && selectedSubjects.length < 4 && (
+                            <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
+                                Please select {4 - selectedSubjects.length} more subject
+                                {4 - selectedSubjects.length > 1 ? "s" : ""} for UTME ({selectedSubjects.length}/4 selected).
+                            </p>
+                        )}
+
+                        {submitError && (
+                            <div
+                                role="alert"
+                                className="text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5"
+                            >
+                                {submitError}
+                            </div>
+                        )}
+
                         {/* Continue Button */}
                         <button
                             type="button"
                             onClick={handleContinue}
-                            className="w-full h-12 mt-2 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs"
+                            disabled={!hasRequiredSubjects || isCheckingSubmit}
+                            className="w-full h-12 mt-1 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Continue
+                            {isCheckingSubmit ? "Checking Availability..." : "Continue"}
                         </button>
                     </div>
                 )}
@@ -709,7 +937,9 @@ export default function StartPracticeModal({
                                 Preferred Number of Questions
                             </h2>
                             <p className="text-xs text-neutral-500 mt-1">
-                                Choose how many questions you want to practice
+                                {subjectCount > 1
+                                    ? `Choose how many questions you want to practice for each subject (${subjectCount} subjects selected)`
+                                    : "Choose how many questions you want to practice"}
                             </p>
                         </div>
 
@@ -728,7 +958,11 @@ export default function StartPracticeModal({
                                     >
                                         <div className="flex items-center gap-2">
                                             <span className="text-base font-semibold">{count}</span>
-                                            <span className="text-xs text-neutral-500">questions</span>
+                                            <span className="text-xs text-neutral-500">
+                                                {subjectCount > 1
+                                                    ? `questions / subject (${count * subjectCount} total)`
+                                                    : "questions"}
+                                            </span>
                                         </div>
 
                                         {isSelected && (
@@ -779,7 +1013,7 @@ export default function StartPracticeModal({
                                 type="button"
                                 onClick={() => {
                                     setTimeTab("recommended");
-                                    const rec = getRecommendedTime(questionCount);
+                                    const rec = getRecommendedTime(totalQuestionCount);
                                     setHours(rec.hours);
                                     setMinutes(rec.minutes);
                                     setSeconds(rec.seconds);
@@ -990,9 +1224,13 @@ export default function StartPracticeModal({
                         </h2>
 
                         <div className="flex flex-col gap-3.5 bg-neutral-50 p-4 rounded-2xl border border-neutral-150">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-neutral-500 font-medium">Subject</span>
-                                <span className="text-neutral-900 font-bold">{selectedSubjectDisplayName}</span>
+                            <div className="flex justify-between items-start gap-4 text-sm">
+                                <span className="text-neutral-500 font-medium shrink-0">
+                                    {isUtmeExam ? "Subjects (4)" : "Subject"}
+                                </span>
+                                <span className="text-neutral-900 font-bold text-right">
+                                    {selectedSubjectDisplayName}
+                                </span>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
@@ -1009,7 +1247,11 @@ export default function StartPracticeModal({
 
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-neutral-500 font-medium">Questions</span>
-                                <span className="text-neutral-900 font-bold">{questionCount} questions</span>
+                                <span className="text-neutral-900 font-bold text-right">
+                                    {subjectCount > 1
+                                        ? `${questionCount} / subject (${totalQuestionCount} total)`
+                                        : `${questionCount} questions`}
+                                </span>
                             </div>
 
                             <div className="flex justify-between items-center text-sm">
@@ -1018,14 +1260,27 @@ export default function StartPracticeModal({
                             </div>
                         </div>
 
+                        {submitError && (
+                            <div
+                                role="alert"
+                                className="text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5"
+                            >
+                                {submitError}
+                            </div>
+                        )}
+
                         {/* Start Practicing Button */}
                         <button
                             type="button"
                             onClick={handleContinue}
-                            disabled={started}
-                            className="w-full h-12 mt-2 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs disabled:opacity-75"
+                            disabled={started || isCheckingSubmit || !hasRequiredSubjects}
+                            className="w-full h-12 mt-2 bg-primary-300 hover:bg-primary-250 text-white rounded-xl font-semibold text-sm transition-colors cursor-pointer active:scale-[0.99] flex items-center justify-center shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {started ? "Starting Practice Session..." : "Start Practicing"}
+                            {isCheckingSubmit
+                                ? "Checking Questions..."
+                                : started
+                                    ? "Starting Practice Session..."
+                                    : "Start Practicing"}
                         </button>
                     </div>
                 )}
