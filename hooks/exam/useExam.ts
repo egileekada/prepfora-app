@@ -6,7 +6,8 @@ import { showSuccess } from "@/config/toast";
 import { URLS } from "@/config/urls";
 import { IAuthUser } from "@/types/auth";
 // import { IWaitlist } from "@/types/waitlist";
-import { useMutation } from "@tanstack/react-query";
+import { fetchUnsecureData } from "@/config/api";
+import { useMutation, useQueries } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
@@ -91,6 +92,151 @@ const useExam = () => {
             name: [URLS.QUESTION],
             params: cleanParams
         });
+    };
+
+    const buildMultiSubjectQuestionSpecs = (
+        subjects: string[],
+        questionsPerSubject: number = 20,
+        year?: string,
+        type?: string,
+        subjectLimits?: Record<string, number>
+    ) => {
+        const cleanSubjects =
+            subjects.length > 0
+                ? subjects.map((s) => s.trim().toLowerCase()).filter(Boolean)
+                : [];
+        const defaultSubjLimit = Math.min(100, Math.max(1, questionsPerSubject));
+
+        return cleanSubjects.map((subj) => {
+            const customLimit = subjectLimits?.[subj];
+            const subjLimit = customLimit
+                ? Math.min(100, Math.max(1, customLimit))
+                : defaultSubjLimit;
+            const cleanParams: Record<string, unknown> = {
+                subject: subj,
+                limit: subjLimit,
+            };
+            if (type && type.trim()) {
+                const normalizedType = type.trim().toLowerCase();
+                cleanParams.type = normalizedType === "jamb" ? "utme" : normalizedType;
+            }
+            if (year && year.trim()) {
+                cleanParams.year = year.trim();
+            }
+
+            return {
+                subject: subj,
+                subjLimit,
+                cleanParams,
+            };
+        });
+    };
+
+    const useGetMultiSubjectQuestions = (
+        subjects: string[],
+        questionsPerSubject: number = 20,
+        year?: string,
+        type?: string,
+        enabled: boolean = true,
+        subjectLimits?: Record<string, number>
+    ) => {
+        const specs = buildMultiSubjectQuestionSpecs(
+            subjects,
+            questionsPerSubject,
+            year,
+            type,
+            subjectLimits
+        );
+
+        const queries = useQueries({
+            queries: specs.map(({ subject: subj, subjLimit, cleanParams }) => ({
+                queryKey: [
+                    URLS.QUESTION,
+                    "multi",
+                    subj,
+                    subjLimit,
+                    year || "",
+                    type || "",
+                ],
+                queryFn: () =>
+                    fetchUnsecureData<{
+                        success: boolean;
+                        message: string;
+                        data: IQuestionMultipleResponse;
+                    }>(URLS.QUESTION, cleanParams),
+                enabled: enabled && Boolean(subj),
+                staleTime: 0,
+            })),
+        });
+
+        const isLoading = queries.some((q) => q.isLoading);
+        const isError = queries.length > 0 && queries.every((q) => q.isError);
+
+        const questionsBySubject = specs.map(({ subject: subj }, idx) => {
+            const items = queries[idx]?.data?.data?.data || [];
+            const queryDone = queries[idx]?.status === "success" && !queries[idx]?.isFetching;
+            return {
+                subject: subj,
+                items,
+                isEmpty: Boolean(queryDone && items.length === 0),
+            };
+        });
+
+        const emptySubjects = questionsBySubject
+            .filter((entry) => entry.isEmpty)
+            .map((entry) => entry.subject);
+
+        const refetchAll = () => {
+            queries.forEach((q) => q.refetch());
+        };
+
+        return {
+            questionsBySubject,
+            emptySubjects,
+            isLoading,
+            isError,
+            refetchAll,
+        };
+    };
+
+    /** Checks question availability from GET /questions for each subject before starting an exam. */
+    const checkMultiSubjectQuestions = async (
+        subjects: string[],
+        questionsPerSubject: number = 20,
+        year?: string,
+        type?: string
+    ): Promise<{
+        hasQuestions: boolean;
+        emptySubjects: string[];
+    }> => {
+        const specs = buildMultiSubjectQuestionSpecs(subjects, questionsPerSubject, year, type);
+        if (specs.length === 0) {
+            return { hasQuestions: false, emptySubjects: [] };
+        }
+
+        const results = await Promise.all(
+            specs.map(async ({ subject: subj, cleanParams }) => {
+                const res = await fetchUnsecureData<{
+                    success: boolean;
+                    message: string;
+                    data: IQuestionMultipleResponse;
+                }>(URLS.QUESTION, cleanParams);
+                const items = res?.data?.data;
+                return {
+                    subject: subj,
+                    hasItems: Array.isArray(items) && items.length > 0,
+                };
+            })
+        );
+
+        const emptySubjects = results
+            .filter((entry) => !entry.hasItems)
+            .map((entry) => entry.subject);
+
+        return {
+            hasQuestions: emptySubjects.length === 0,
+            emptySubjects,
+        };
     };
 
     const createExamination = useMutation({
@@ -223,6 +369,8 @@ const useExam = () => {
         formik,
         isLoading,
         useGetQuestion,
+        useGetMultiSubjectQuestions,
+        checkMultiSubjectQuestions,
         useGetSubject,
         useGetUserExaminations,
         useGetExaminationById,

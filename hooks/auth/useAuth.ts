@@ -20,6 +20,11 @@ const useAuth = () => {
 
     const searchParams = useSearchParams()
     const email = searchParams.get("email")
+    const referralCode = searchParams.get("referral_code") || searchParams.get("ref") || searchParams.get("referral")
+    const affiliateCode = searchParams.get("affiliate_code") || searchParams.get("affiliate")
+
+    console.log("referralCode", referralCode);
+
 
     const validationSchema = Yup.object({
         email: Yup.string()
@@ -35,6 +40,7 @@ const useAuth = () => {
             .email("Please enter a valid email")
             .required("Email is required")
             .oneOf([Yup.ref("email")], "Email addresses do not match"),
+        referral_code: Yup.string().optional().nullable(),
     });
 
     const validationSchemaOtp = Yup.object({
@@ -56,8 +62,30 @@ const useAuth = () => {
     });
 
     const register = useMutation({
-        mutationFn: (data: IAuth) =>
-            unsecureHttpService.post(URLS.REGISTER, data),
+        mutationFn: (data: IAuth) => {
+            const activeReferralCode = data.referral_code || referralCode;
+            const activeAffiliateCode = data.affiliate_code || affiliateCode;
+
+            const params: Record<string, string> = {};
+            if (activeReferralCode) {
+                params.referral_code = activeReferralCode;
+            }
+            if (activeAffiliateCode) {
+                params.affiliate_code = activeAffiliateCode;
+            }
+
+            return unsecureHttpService.post(
+                URLS.REGISTER,
+                {
+                    email: data.email,
+                    ...(activeReferralCode ? { referral_code: activeReferralCode } : {}),
+                    ...(activeAffiliateCode ? { affiliate_code: activeAffiliateCode } : {}),
+                },
+                {
+                    params: Object.keys(params).length > 0 ? params : undefined,
+                }
+            );
+        },
         onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
         onSuccess: (data) => {
             showSuccess(data?.data?.message)
@@ -85,8 +113,30 @@ const useAuth = () => {
     });
 
     const googleAuth = useMutation({
-        mutationFn: (data: IGoogleAuthPayload) =>
-            unsecureHttpService.post(URLS.GOOGLE, data),
+        mutationFn: (data: IGoogleAuthPayload) => {
+            const activeReferralCode = data.referral_code || referralCode;
+            const activeAffiliateCode = data.affiliate_code || affiliateCode;
+
+            const params: Record<string, string> = {};
+            if (activeReferralCode) {
+                params.referral_code = activeReferralCode;
+            }
+            if (activeAffiliateCode) {
+                params.affiliate_code = activeAffiliateCode;
+            }
+
+            return unsecureHttpService.post(
+                URLS.GOOGLE,
+                {
+                    ...data,
+                    ...(activeReferralCode ? { referral_code: activeReferralCode } : {}),
+                    ...(activeAffiliateCode ? { affiliate_code: activeAffiliateCode } : {}),
+                },
+                {
+                    params: Object.keys(params).length > 0 ? params : undefined,
+                }
+            );
+        },
         onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
         onSuccess: (data) => {
             if (data?.data?.success === false) {
@@ -134,12 +184,17 @@ const useAuth = () => {
     const formikRegister = useFormik({
         initialValues: {
             email: "",
-            confirm_email: ""
+            confirm_email: "",
+            referral_code: referralCode || "",
         },
         validationSchema: validationSchemaRegister,
+        enableReinitialize: true,
         onSubmit: (data) => {
+            const activeRef = data.referral_code || referralCode || undefined;
             register.mutate({
-                email: data.email
+                email: data.email,
+                referral_code: activeRef,
+                affiliate_code: affiliateCode || undefined,
             })
         },
     });
@@ -169,6 +224,8 @@ const useAuth = () => {
         isOpen,
         setOpen,
         isLoading,
+        referralCode,
+        affiliateCode,
     };
 };
 

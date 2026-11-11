@@ -51,7 +51,7 @@ const options = [
     },
     {
         label: "POST-UTME",
-        value: "post-utme",
+        value: "utme",
     },
 ];
 
