@@ -108,6 +108,8 @@ export default function StartPracticeModal({
     const [started, setStarted] = useState<boolean>(false);
     const [isCheckingSubmit, setIsCheckingSubmit] = useState<boolean>(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null);
+    const [hasPartialUtmeSelection, setHasPartialUtmeSelection] = useState<boolean>(false);
 
     // Dropdown open states
     const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
@@ -127,8 +129,10 @@ export default function StartPracticeModal({
     }, [subjectsData?.data?.subjects]);
 
     const isUtmeExam = selectedExamType.trim().toLowerCase() === "utme";
-    const requiredSubjectCount = isUtmeExam ? 4 : 1;
-    const hasRequiredSubjects = selectedSubjects.length === requiredSubjectCount;
+    const maxUtmeSubjects = 4;
+    const hasRequiredSubjects = isUtmeExam
+        ? selectedSubjects.length >= 1 && selectedSubjects.length <= maxUtmeSubjects
+        : selectedSubjects.length === 1;
     const subjectCount = Math.max(1, selectedSubjects.length);
     const totalQuestionCount = questionCount * subjectCount;
 
@@ -173,6 +177,8 @@ export default function StartPracticeModal({
             setStarted(false);
             setIsCheckingSubmit(false);
             setSubmitError(null);
+            setAvailabilityNotice(null);
+            setHasPartialUtmeSelection(false);
 
             let resolvedExam = "UTME";
             if (propSubject?.exam) {
@@ -268,13 +274,17 @@ export default function StartPracticeModal({
 
     const subjectTitle =
         isUtmeExam
-            ? `UTME Practice (${selectedSubjects.length}/4)`
+            ? hasPartialUtmeSelection
+                ? `UTME Practice (${selectedSubjects.length} available)`
+                : `UTME Practice (${selectedSubjects.length} selected)`
             : `${selectedSubjectDisplayName} Practice`;
 
     const isSchoolRequired = !["waec", "neco", "utme"].includes(selectedExamType.trim().toLowerCase());
 
     const handleToggleSubject = (sub: { name: string; displayName: string }) => {
         setSubmitError(null);
+        setAvailabilityNotice(null);
+        setHasPartialUtmeSelection(false);
         if (!isUtmeExam) {
             setSelectedSubjects([{ name: sub.name, displayName: sub.displayName }]);
             setIsSubjectDropdownOpen(false);
@@ -299,6 +309,8 @@ export default function StartPracticeModal({
 
     const handleExamTypeChange = (exam: string) => {
         setSubmitError(null);
+        setAvailabilityNotice(null);
+        setHasPartialUtmeSelection(false);
         setSelectedExamType(exam);
         setIsExamTypeDropdownOpen(false);
         const nextIsUtme = exam.trim().toLowerCase() === "utme";
@@ -333,7 +345,9 @@ export default function StartPracticeModal({
         }
     };
 
-    const verifySubjectsAvailability = async (limitPerSubject: number): Promise<boolean> => {
+    const verifySubjectsAvailability = async (
+        limitPerSubject: number
+    ): Promise<{ ok: boolean; activeSubjects: SelectedSubjectItem[] }> => {
         setSubmitError(null);
         setIsCheckingSubmit(true);
 
@@ -346,22 +360,41 @@ export default function StartPracticeModal({
             );
 
             if (!hasQuestions) {
+                const emptySlugSet = new Set(
+                    emptySubjects.map((slug) => slug.trim().toLowerCase())
+                );
                 const missingLabels = emptySubjects.map((slug) => {
                     const found = selectedSubjects.find(
                         (s) => s.name.toLowerCase() === slug.toLowerCase()
                     );
                     return found?.displayName || slug;
                 });
+                const availableSubjects = selectedSubjects.filter(
+                    (s) => !emptySlugSet.has(s.name.toLowerCase())
+                );
+
+                // For UTME (JAMB), if 1, 2, or 3 subjects are unavailable while at least 1 is available,
+                // keep and show only the available subject(s).
+                if (isUtmeExam && availableSubjects.length > 0) {
+                    setSelectedSubjects(availableSubjects);
+                    setHasPartialUtmeSelection(true);
+                    setAvailabilityNotice(
+                        `${missingLabels.join(", ")} ${missingLabels.length > 1 ? "have" : "has"} no questions for ${selectedExamType} ${selectedYear}. Showing only available subject${availableSubjects.length > 1 ? "s" : ""}: ${availableSubjects.map((s) => s.displayName).join(", ")}.`
+                    );
+                    return { ok: true, activeSubjects: availableSubjects };
+                }
+
                 setSubmitError(
                     `No questions available for ${missingLabels.join(", ")} (${selectedExamType} ${selectedYear}). Please choose another subject, exam type, or year.`
                 );
-                return false;
+                return { ok: false, activeSubjects: [] };
             }
-            return true;
+
+            return { ok: true, activeSubjects: selectedSubjects };
         } catch (err) {
             console.error("Failed to verify questions:", err);
             setSubmitError("Unable to verify questions from the server right now. Please try again.");
-            return false;
+            return { ok: false, activeSubjects: [] };
         } finally {
             setIsCheckingSubmit(false);
         }
@@ -372,8 +405,8 @@ export default function StartPracticeModal({
             if (!hasRequiredSubjects || isCheckingSubmit) {
                 return;
             }
-            const available = await verifySubjectsAvailability(1);
-            if (!available) {
+            const { ok } = await verifySubjectsAvailability(1);
+            if (!ok) {
                 return;
             }
             setStep(isSchoolRequired ? "school" : "questions");
@@ -400,21 +433,27 @@ export default function StartPracticeModal({
                 return;
             }
 
-            const available = await verifySubjectsAvailability(questionCount);
-            if (!available) {
+            const { ok, activeSubjects } = await verifySubjectsAvailability(questionCount);
+            if (!ok || activeSubjects.length === 0) {
                 return;
             }
+
+            const effectivePrimaryName = activeSubjects[0]?.name || "english";
+            const effectiveDisplayTitle = activeSubjects
+                .map((s) => s.displayName)
+                .join(", ");
+            const effectiveTotalCount = questionCount * activeSubjects.length;
 
             setStarted(true);
             const practiceConfig: PracticeConfig = {
                 subject: propSubject,
-                subjectName: selectedSubjectName,
-                subjectDisplayName: selectedSubjectDisplayName,
-                subjects: selectedSubjects,
+                subjectName: effectivePrimaryName,
+                subjectDisplayName: effectiveDisplayTitle,
+                subjects: activeSubjects,
                 examType: selectedExamType,
                 year: selectedYear,
                 school: isSchoolRequired ? selectedSchool : "",
-                questionCount: totalQuestionCount,
+                questionCount: effectiveTotalCount,
                 questionsPerSubject: questionCount,
                 time: { hours, minutes, seconds },
             };
@@ -430,12 +469,12 @@ export default function StartPracticeModal({
                 setTimeout(() => {
                     onClose();
                     const params = new URLSearchParams({
-                        subject: selectedSubjectName,
-                        subjects: selectedSubjects.map((s) => s.name).join(","),
-                        subjectTitle: selectedSubjectDisplayName,
+                        subject: effectivePrimaryName,
+                        subjects: activeSubjects.map((s) => s.name).join(","),
+                        subjectTitle: effectiveDisplayTitle,
                         type: selectedExamType.toLowerCase(),
                         year: selectedYear,
-                        limit: String(totalQuestionCount),
+                        limit: String(effectiveTotalCount),
                         perSubject: String(questionCount),
                         ...(isSchoolRequired && selectedSchool ? { school: selectedSchool } : {}),
                         hours: String(hours),
@@ -597,7 +636,7 @@ export default function StartPracticeModal({
                             </h2>
                             <p className="text-xs text-neutral-500 mt-1">
                                 {isUtmeExam
-                                    ? "Select 4 subjects, exam category, and examination year for UTME"
+                                    ? "Select 1 to 4 subjects, exam category, and examination year for UTME"
                                     : "Choose your subject, exam category, and examination year"}
                             </p>
                         </div>
@@ -606,11 +645,11 @@ export default function StartPracticeModal({
                         <div className="flex flex-col gap-1.5 relative" ref={subjectDropdownRef}>
                             <div className="flex items-center justify-between">
                                 <label className="text-xs font-semibold text-neutral-700">
-                                    {isUtmeExam ? "Select 4 Subjects *" : "Select Subject *"}
+                                    {isUtmeExam ? "Select Subject(s) *" : "Select Subject *"}
                                 </label>
                                 {isUtmeExam && (
                                     <span
-                                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${selectedSubjects.length === 4
+                                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${selectedSubjects.length >= 1
                                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                             : "bg-amber-50 text-amber-700 border border-amber-200"
                                             }`}
@@ -629,7 +668,7 @@ export default function StartPracticeModal({
                                     {isSubjectsLoading
                                         ? "Loading subjects..."
                                         : isUtmeExam && selectedSubjects.length === 0
-                                            ? "Choose 4 subjects..."
+                                            ? "Choose 1 to 4 subjects..."
                                             : selectedSubjectDisplayName}
                                 </span>
                                 <div className="w-6 h-6 rounded-full border border-neutral-300 flex items-center justify-center flex-shrink-0 text-neutral-500">
@@ -808,6 +847,8 @@ export default function StartPracticeModal({
                                                     type="button"
                                                     onClick={() => {
                                                         setSubmitError(null);
+                                                        setAvailabilityNotice(null);
+                                                        setHasPartialUtmeSelection(false);
                                                         setSelectedYear(year);
                                                         setIsYearDropdownOpen(false);
                                                     }}
@@ -825,12 +866,20 @@ export default function StartPracticeModal({
                             </div>
                         </div>
 
-                        {/* UTME 4-Subject Validation Feedback */}
-                        {isUtmeExam && selectedSubjects.length < 4 && (
+                        {/* UTME Subject Validation Feedback (at least 1 required, up to 4) */}
+                        {isUtmeExam && selectedSubjects.length === 0 && (
                             <p className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
-                                Please select {4 - selectedSubjects.length} more subject
-                                {4 - selectedSubjects.length > 1 ? "s" : ""} for UTME ({selectedSubjects.length}/4 selected).
+                                Please select at least 1 subject for UTME (up to 4).
                             </p>
+                        )}
+
+                        {availabilityNotice && (
+                            <div
+                                role="status"
+                                className="text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5"
+                            >
+                                {availabilityNotice}
+                            </div>
                         )}
 
                         {submitError && (
@@ -938,10 +987,19 @@ export default function StartPracticeModal({
                             </h2>
                             <p className="text-xs text-neutral-500 mt-1">
                                 {subjectCount > 1
-                                    ? `Choose how many questions you want to practice for each subject (${subjectCount} subjects selected)`
+                                    ? `Choose how many questions you want to practice for each subject (${subjectCount} available subjects)`
                                     : "Choose how many questions you want to practice"}
                             </p>
                         </div>
+
+                        {availabilityNotice && (
+                            <div
+                                role="status"
+                                className="text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 -mt-2"
+                            >
+                                {availabilityNotice}
+                            </div>
+                        )}
 
                         <div className="flex flex-col gap-3">
                             {QUESTION_OPTIONS.map((count) => {
@@ -1226,7 +1284,9 @@ export default function StartPracticeModal({
                         <div className="flex flex-col gap-3.5 bg-neutral-50 p-4 rounded-2xl border border-neutral-150">
                             <div className="flex justify-between items-start gap-4 text-sm">
                                 <span className="text-neutral-500 font-medium shrink-0">
-                                    {isUtmeExam ? "Subjects (4)" : "Subject"}
+                                    {selectedSubjects.length > 1
+                                        ? `Subjects (${selectedSubjects.length})`
+                                        : "Subject"}
                                 </span>
                                 <span className="text-neutral-900 font-bold text-right">
                                     {selectedSubjectDisplayName}
@@ -1259,6 +1319,15 @@ export default function StartPracticeModal({
                                 <span className="text-neutral-900 font-bold">{summaryTimeText}</span>
                             </div>
                         </div>
+
+                        {availabilityNotice && (
+                            <div
+                                role="status"
+                                className="text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5"
+                            >
+                                {availabilityNotice}
+                            </div>
+                        )}
 
                         {submitError && (
                             <div
