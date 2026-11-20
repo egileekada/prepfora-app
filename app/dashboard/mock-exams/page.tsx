@@ -28,7 +28,7 @@ export default function MockExamsPage() {
 
     const handleViewAnalysis = (item: ExamHistoryItem) => {
         const analysisData =
-            MOCK_ANALYSIS_DATA[item.examCode] || MOCK_ANALYSIS_DATA["JAMB"];
+            MOCK_ANALYSIS_DATA[item.examCode] || MOCK_ANALYSIS_DATA["jamb"];
         setActiveAnalysis(analysisData);
     };
 
@@ -77,4 +77,4 @@ export default function MockExamsPage() {
             />
         </div>
     );
-}
+}

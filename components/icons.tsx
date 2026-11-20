@@ -294,5 +294,25 @@ export const CoinIcon = (props: IconSvgProps) => (
             </clipPath>
         </defs>
     </svg>
-
 );
+
+export const BadgeRosetteIcon = (props: IconSvgProps) => (
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+        <path
+            d="M24 3L28.5 7.5L34.5 6L36.5 12L42.5 14L41.5 20.5L46 24L41.5 27.5L42.5 34L36.5 36L34.5 42L28.5 40.5L24 45L19.5 40.5L13.5 42L11.5 36L5.5 34L6.5 27.5L2 24L6.5 20.5L5.5 14L11.5 12L13.5 6L19.5 7.5L24 3Z"
+            fill="#EF4444"
+        />
+        <text
+            x="24"
+            y="29"
+            textAnchor="middle"
+            fill="#FFFFFF"
+            fontSize="16"
+            fontWeight="900"
+            fontFamily="sans-serif"
+        >
+            %
+        </text>
+    </svg>
+);
+

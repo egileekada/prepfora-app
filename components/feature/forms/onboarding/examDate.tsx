@@ -56,6 +56,14 @@ export default function ExamDate({ formik }: {
         )
     };
 
+    const clickHanlder = () => {
+        if (formik.values?.examinations?.includes("jamb")) {
+            router.push("/onboarding?type=goals")
+        } else {
+            router.push("/onboarding?type=your-goals")
+        }
+    }
+
     return (
         <FormikProvider value={formik}>
             <form className=" w-full p-6 flex flex-col gap-6 rounded-2xl bg-white ">
@@ -72,7 +80,7 @@ export default function ExamDate({ formik }: {
                     })}
                 </div>
                 <div className=" flex flex-col gap-4 w-full " >
-                    <CustomButton fullWidth onClick={() => router.push("/onboarding?type=goals")} isDisabled={formik.values?.current_examination_date?.length === 0} variant={formik.values?.current_examination_date?.length > 0 ? "primary" : "disabled"} >Continue</CustomButton>
+                    <CustomButton fullWidth onClick={clickHanlder} isDisabled={formik.values?.current_examination_date?.length === 0} variant={formik.values?.current_examination_date?.length > 0 ? "primary" : "disabled"} >Continue</CustomButton>
                 </div>
             </form>
         </FormikProvider>

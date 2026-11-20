@@ -11,12 +11,14 @@ export default function VerificationForm() {
 
     return (
         <FormikProvider value={formik}>
-            <form onSubmit={formik.handleSubmit} className=" w-full p-6 flex flex-col gap-6 rounded-2xl bg-white ">
-                <div className=" flex flex-col gap-3 w-full justify-center items-center " >
+            <form onSubmit={formik.handleSubmit} className="w-full p-5 sm:p-6 flex flex-col gap-5 sm:gap-6 rounded-2xl bg-white shadow-sm border border-neutral-100/80">
+                <div className="flex flex-col gap-3 w-full justify-center items-center">
                     <OTPInput name="otp" length={6} />
                 </div>
-                <div className=" flex flex-col gap-3 w-full " >
-                    <CustomButton type="submit" disabled={!formik.isValid} fullWidth loading={formik.isSubmitting} isDisabled={isLoading} variant={!formik.isValid ? "primary" : "disabled"} >Continue</CustomButton>
+                <div className="flex flex-col gap-3 w-full">
+                    <CustomButton type="submit" disabled={!formik.isValid} fullWidth loading={formik.isSubmitting} isDisabled={isLoading} variant={!formik.isValid ? "primary" : "disabled"}>
+                        Continue
+                    </CustomButton>
                 </div>
             </form>
         </FormikProvider>

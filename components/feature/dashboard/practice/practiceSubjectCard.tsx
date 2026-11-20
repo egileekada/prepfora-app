@@ -9,6 +9,10 @@ export interface SubjectCardData {
     percent: number;
     color?: string;
     exam?: string;
+    examinationId?: string;
+    year?: string;
+    totalQuestion?: number;
+    totalAnswered?: number;
 }
 
 interface PracticeSubjectCardProps {
@@ -59,16 +63,23 @@ export default function PracticeSubjectCard({
 
     return (
         <div className="bg-white border border-[#E2EAF4] rounded-2xl p-5 flex flex-col justify-between hover:shadow-md hover:border-primary-200 transition-all duration-200 group">
-            {/* Top Row: Letter Icon Badge */}
-            <div className="w-11 h-11 rounded-full bg-[#FCE8D3] flex items-center justify-center mb-4 flex-shrink-0">
-                <span className="text-[#7A3F14] font-bold text-base select-none">
-                    {letter}
-                </span>
+            {/* Top Row: Letter Icon Badge & Optional Exam Tag */}
+            <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-full bg-[#FCE8D3] flex items-center justify-center flex-shrink-0">
+                    <span className="text-[#7A3F14] font-bold text-base select-none">
+                        {letter}
+                    </span>
+                </div>
+                {subject.exam && (
+                    <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-600">
+                        {subject.exam}
+                    </span>
+                )}
             </div>
 
             {/* Middle: Subject Name & Percentage */}
             <div className="w-full mb-4">
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-semibold text-neutral-800 group-hover:text-neutral-900 transition-colors">
                         {name}
                     </span>
@@ -76,6 +87,13 @@ export default function PracticeSubjectCard({
                         {percent}%
                     </span>
                 </div>
+
+                {subject.totalQuestion !== undefined && subject.totalAnswered !== undefined && subject.totalQuestion > 0 && (
+                    <div className="flex justify-between text-xs text-neutral-400 mb-1.5 font-medium">
+                        <span>{subject.totalAnswered} of {subject.totalQuestion} answered</span>
+                        {subject.year && <span>({subject.year})</span>}
+                    </div>
+                )}
 
                 {/* Progress Bar */}
                 <div className="w-full h-1.5 bg-[#EEF2F6] rounded-full overflow-hidden">
@@ -92,7 +110,7 @@ export default function PracticeSubjectCard({
                 onClick={() => onContinue?.(subject)}
                 className="w-full h-10 rounded-xl border border-primary-300 text-primary-300 font-semibold text-xs sm:text-sm hover:bg-primary-50 active:scale-[0.98] transition-all flex items-center justify-center cursor-pointer"
             >
-                Continue Practicing
+                {subject.examinationId ? "Resume Practice" : "Continue Practicing"}
             </button>
         </div>
     );

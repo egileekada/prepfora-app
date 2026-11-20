@@ -11,7 +11,7 @@ const useFAQ = () => {
 
 
     const useGetFAQ = () => {
-        return useUnsecureFetchDataNoCache<PaginatedResponse<IFaqResponse>>({
+        return useUnsecureFetchDataNoCache<PaginatedResponse<IFaqResponse[]>>({
             endpoint: URLS.FAQ,
             name: [URLS.FAQ],
             params: {

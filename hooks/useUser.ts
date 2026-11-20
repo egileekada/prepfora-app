@@ -4,9 +4,9 @@ import { handleApiError } from "@/config/handleApiError";
 import httpService from "@/config/httpService";
 import { showSuccess } from "@/config/toast";
 import { URLS } from "@/config/urls";
-import { IAuthUser } from "@/types/auth";
+import { IAuthUser, IFileUploadResponse, IUpdateUserPayload, IUserProfile } from "@/types/auth";
 // import { IWaitlist } from "@/types/waitlist";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useFormik } from "formik";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ import { useFetchData, useUnsecureFetchDataNoCache } from "./useFetchData";
 const useUser = () => {
 
     const router = useRouter()
-
+    const queryClient = useQueryClient()
 
     const validationSchema = Yup.object({
         first_name: Yup.string()
@@ -44,14 +44,71 @@ const useUser = () => {
         onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
         onSuccess: (data) => {
             showSuccess(data?.data?.message)
-            router.push(`/dashboard/home`)
+            queryClient.invalidateQueries({ queryKey: [URLS.USER_PROFILE] })
+            router.replace(`/dashboard/home`)
         },
     });
 
+    const updateProfile = useMutation({
+        mutationFn: (data: IUpdateUserPayload) =>
+            httpService.patch(URLS.USER_PROFILE, data),
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+        onSuccess: (data) => {
+            showSuccess(data?.data?.message || "Profile updated successfully")
+            queryClient.invalidateQueries({ queryKey: [URLS.USER_PROFILE] })
+        },
+    });
 
+    const uploadFile = useMutation({
+        mutationFn: async ({ file, folder = "profile_pictures" }: { file: File; folder?: string }) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("folder", folder);
+            const res = await httpService.post<{
+                success: boolean;
+                message: string;
+                data: IFileUploadResponse;
+            }>(URLS.UPLOAD, formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+            return res.data;
+        },
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+    });
+
+    const uploadProfilePicture = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("folder", "profile_pictures");
+            const uploadRes = await httpService.post<{
+                success: boolean;
+                message: string;
+                data: IFileUploadResponse;
+            }>(URLS.UPLOAD, formData, {
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+            const fileUrl = uploadRes?.data?.data?.url;
+            if (!fileUrl) {
+                throw new Error("Failed to retrieve uploaded image URL");
+            }
+            await httpService.patch(URLS.USER_PROFILE, {
+                profile_picture: fileUrl,
+            });
+            return fileUrl;
+        },
+        onError: (error: AxiosError<ApiErrorResponse>) => handleApiError(error),
+        onSuccess: () => {
+            showSuccess("Profile picture updated successfully");
+            queryClient.invalidateQueries({ queryKey: [URLS.USER_PROFILE] });
+        },
+    });
 
     const [page, setPage] = useState(1)
-
 
     const useGetUniversity = () => {
         return useUnsecureFetchDataNoCache<any>({
@@ -60,14 +117,17 @@ const useUser = () => {
         });
     };
 
-
     const useGetProfile = () => {
-        return useFetchData<any>({
+        return useFetchData<{
+            success: boolean;
+            message: string;
+            data: IUserProfile;
+            pagination: any;
+        }>({
             endpoint: URLS.USER_PROFILE,
             name: [URLS.USER_PROFILE]
         });
     };
-
 
     const formik = useFormik<IAuthUser>({
         initialValues: {
@@ -108,7 +168,6 @@ const useUser = () => {
                     return date.toISOString();
                 }
             };
-
             updateUser.mutate({
                 ...data,
                 current_examination_date: convertToDate()
@@ -121,6 +180,10 @@ const useUser = () => {
     return {
         formik,
         isLoading,
+        updateProfile,
+        uploadFile,
+        uploadProfilePicture,
+        updateUser,
         useGetProfile,
         useGetUniversity,
         setPage,

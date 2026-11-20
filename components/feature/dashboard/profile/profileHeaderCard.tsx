@@ -1,37 +1,87 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef } from "react";
 import { UserProfileData } from "./profileTypes";
+import { UserAvatar } from "@/components/common";
 
 interface ProfileHeaderCardProps {
     profile: UserProfileData;
     onEditProfile: () => void;
+    onUploadAvatar?: (file: File) => Promise<any> | void;
+    isUploadingAvatar?: boolean;
 }
 
 export default function ProfileHeaderCard({
     profile,
     onEditProfile,
+    onUploadAvatar,
+    isUploadingAvatar = false,
 }: ProfileHeaderCardProps) {
-    const [imgError, setImgError] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !onUploadAvatar) return;
+        try {
+            await onUploadAvatar(file);
+        } finally {
+            e.target.value = "";
+        }
+    };
 
     return (
         <div className="w-full bg-white border-2 border-[#93C5FD] rounded-3xl p-5 sm:p-6 flex items-center justify-between shadow-2xs">
             {/* Left: Avatar & User Info */}
             <div className="flex items-center gap-4 sm:gap-5">
-                {/* Avatar with Teal Border */}
-                <div className="w-18 h-18 sm:w-24 sm:h-24 rounded-full overflow-hidden border-4 border-[#10B981] relative flex-shrink-0 bg-neutral-100">
-                    {!imgError ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={profile.avatarUrl || "/images/landing/hero1.png"}
-                            alt={`${profile.firstName} ${profile.lastName}`}
-                            onError={() => setImgError(true)}
-                            className="w-full h-full object-cover object-top"
+                {/* Avatar with Teal Border & Camera Upload Action */}
+                <div className="relative flex-shrink-0 group">
+                    <div className="w-18 h-18 sm:w-24 sm:h-24 rounded-full overflow-hidden border-4 border-[#10B981] relative bg-neutral-100 shadow-xs">
+                        <UserAvatar
+                            src={profile.avatarUrl}
+                            firstName={profile.firstName}
+                            lastName={profile.lastName}
+                            textClassName="text-xl sm:text-2xl font-bold"
                         />
-                    ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary-200 to-primary-400 flex items-center justify-center text-white font-bold text-lg">
-                            {profile.firstName.charAt(0)}
-                        </div>
+                        {isUploadingAvatar && (
+                            <div className="absolute inset-0 bg-black/40 backdrop-blur-2xs flex items-center justify-center z-10">
+                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Camera Badge Button */}
+                    {onUploadAvatar && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploadingAvatar}
+                                aria-label="Upload profile picture"
+                                title="Upload profile picture"
+                                className="absolute bottom-0 right-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border border-neutral-300 shadow-md flex items-center justify-center cursor-pointer hover:bg-neutral-50 active:scale-95 transition-all text-neutral-700 disabled:opacity-50"
+                            >
+                                <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                                    <circle cx="12" cy="13" r="4" />
+                                </svg>
+                            </button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                className="hidden"
+                            />
+                        </>
                     )}
                 </div>
 
@@ -77,7 +127,7 @@ export default function ProfileHeaderCard({
             <button
                 type="button"
                 onClick={onEditProfile}
-                className="border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 font-medium text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
+                className="border border-[#2563EB] relative z-20 text-[#2563EB] hover:bg-blue-50 font-medium text-xs sm:text-sm px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-colors cursor-pointer flex-shrink-0"
             >
                 Edit Profile
             </button>
