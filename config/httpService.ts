@@ -74,6 +74,72 @@ export function clearSession() {
   localStorage.removeItem("prepforauserrole");
 }
 
+/** Navigates to the auth page if not already there, clearing session. */
+export function redirectToAuth() {
+  clearSession();
+  if (typeof window !== "undefined") {
+    const currentPath = window.location.pathname;
+    if (!currentPath.startsWith("/auth")) {
+      window.location.href = "/auth";
+    }
+  }
+}
+
+/**
+ * Checks if a JWT token is expired (with a 10s safety buffer).
+ * Returns true if token is missing or expired, false if valid or not a JWT.
+ */
+export function isTokenExpired(token: string | null | undefined): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(jsonPayload);
+    if (typeof payload.exp !== "number") return false;
+    // 10-second buffer before actual expiration
+    return Date.now() >= payload.exp * 1000 - 10_000;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Checks whether an error response indicates that the token is invalid or expired.
+ * Handles 401, 403, and 500 error messages from the backend (e.g., "Invalid or expired token").
+ */
+export function isAuthExpiredError(error: AxiosError<unknown>): boolean {
+  const status = error.response?.status;
+  if (status === 401) return true;
+
+  const data: any = error.response?.data;
+  const rawMsg =
+    (typeof data === "string" ? data : "") ||
+    data?.message ||
+    data?.detail ||
+    data?.error ||
+    error.message ||
+    "";
+  const msg = rawMsg.toString().toLowerCase();
+
+  return (
+    msg.includes("invalid or expired token") ||
+    msg.includes("expired token") ||
+    msg.includes("token has expired") ||
+    msg.includes("token is expired") ||
+    msg.includes("could not validate credentials") ||
+    msg.includes("not authenticated") ||
+    msg.includes("signature has expired") ||
+    msg.includes("jwt expired")
+  );
+}
+
 // ─── Axios Instances ──────────────────────────────────────────────────────────
 
 export const httpService = axios.create({
@@ -88,27 +154,7 @@ export const unsecureHttpService = axios.create({
 
 // ─── Refresh Token Logic ──────────────────────────────────────────────────────
 
-let isRefreshing = false;
-
-// Queue of { resolve, reject } for requests that arrived during a refresh
-type PromiseExecutor = {
-  resolve: (token: string) => void;
-  reject: (err: unknown) => void;
-};
-let failedQueue: PromiseExecutor[] = [];
-
-/**
- * Drain the queue: resolve every waiting request with the new token,
- * or reject them all if the refresh itself failed.
- */
-function processQueue(error: unknown, token: string | null = null) {
-  failedQueue.forEach(({ resolve, reject }) => {
-    if (error) reject(error);
-    else if (token) resolve(token);
-    else reject(new Error("No token returned after refresh"));
-  });
-  failedQueue = [];
-}
+let refreshPromise: Promise<string> | null = null;
 
 interface RefreshApiResponse {
   success?: boolean;
@@ -130,38 +176,46 @@ interface RefreshApiResponse {
 }
 
 async function refreshAccessToken(): Promise<string> {
-  const refreshToken = tokenStorage.getRefresh();
-  if (!refreshToken) throw new Error("No refresh token available");
+  if (refreshPromise) return refreshPromise;
 
-  // Use the unsecure instance so this call never triggers another refresh loop
-  const response = await unsecureHttpService.post<RefreshApiResponse>(
-    URLS.REFRESH_TOKEN || "/auth/refresh-token",
-    { refresh_token: refreshToken }
-  );
+  refreshPromise = (async () => {
+    const refreshToken = tokenStorage.getRefresh();
+    if (!refreshToken) throw new Error("No refresh token available");
 
-  const res = response.data;
-  const newAccessToken =
-    res?.data?.access_token ||
-    res?.data?.tokens?.access_token ||
-    res?.access_token ||
-    res?.tokens?.access_token;
+    // Use the unsecure instance so this call never triggers another refresh loop
+    const response = await unsecureHttpService.post<RefreshApiResponse>(
+      URLS.REFRESH_TOKEN || "/auth/refresh-token",
+      { refresh_token: refreshToken }
+    );
 
-  const newRefreshToken =
-    res?.data?.refresh_token ||
-    res?.data?.tokens?.refresh_token ||
-    res?.refresh_token ||
-    res?.tokens?.refresh_token;
+    const res = response.data;
+    const newAccessToken =
+      res?.data?.access_token ||
+      res?.data?.tokens?.access_token ||
+      res?.access_token ||
+      res?.tokens?.access_token;
 
-  if (!newAccessToken) {
-    throw new Error("No access token received from refresh endpoint");
-  }
+    const newRefreshToken =
+      res?.data?.refresh_token ||
+      res?.data?.tokens?.refresh_token ||
+      res?.refresh_token ||
+      res?.tokens?.refresh_token;
 
-  tokenStorage.setAccess(newAccessToken);
-  if (newRefreshToken) {
-    tokenStorage.setRefresh(newRefreshToken);
-  }
+    if (!newAccessToken) {
+      throw new Error("No access token received from refresh endpoint");
+    }
 
-  return newAccessToken;
+    tokenStorage.setAccess(newAccessToken);
+    if (newRefreshToken) {
+      tokenStorage.setRefresh(newRefreshToken);
+    }
+
+    return newAccessToken;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
 }
 
 // ─── Unsecured Instance Interceptors ─────────────────────────────────────────
@@ -184,8 +238,25 @@ function setAuthHeader(config: InternalAxiosRequestConfig, token: string) {
 // ─── Secured Instance — Request Interceptor ───────────────────────────────────
 
 httpService.interceptors.request.use(
-  (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-    const token = tokenStorage.getAccess();
+  async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
+    let token = tokenStorage.getAccess();
+
+    // Proactive check: if access token is present and expired, try refreshing before request
+    if (token && isTokenExpired(token)) {
+      const refreshToken = tokenStorage.getRefresh();
+      if (refreshToken && !isTokenExpired(refreshToken)) {
+        try {
+          token = await refreshAccessToken();
+        } catch {
+          redirectToAuth();
+          return Promise.reject(new Error("Token expired and refresh failed"));
+        }
+      } else {
+        redirectToAuth();
+        return Promise.reject(new Error("Session expired"));
+      }
+    }
+
     if (token) {
       setAuthHeader(config, token);
     }
@@ -194,57 +265,53 @@ httpService.interceptors.request.use(
   (error: AxiosError<unknown>): Promise<never> => Promise.reject(error)
 );
 
-// ─── Secured Instance — Response Interceptor (handles 401 + refresh) ─────────
+// ─── Secured Instance — Response Interceptor (handles 401 / expired token + refresh) ─────────
 
 httpService.interceptors.response.use(
-  (response: AxiosResponse): AxiosResponse => response,
+  (response: AxiosResponse): AxiosResponse => {
+    // If backend returns 200 with success: false and token expired message
+    const data: any = response.data;
+    if (data && data.success === false) {
+      const msg = (data.message || data.detail || "").toString().toLowerCase();
+      if (
+        msg.includes("invalid or expired token") ||
+        msg.includes("expired token") ||
+        msg.includes("token has expired") ||
+        msg.includes("could not validate credentials")
+      ) {
+        redirectToAuth();
+      }
+    }
+    return response;
+  },
 
   async (error: AxiosError<unknown>): Promise<AxiosResponse> => {
     const originalRequest = error.config as
       | (InternalAxiosRequestConfig & { _retry?: boolean })
       | undefined;
 
-    // Only attempt refresh on 401 and only once per request
-    if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
+    const isExpired = isAuthExpiredError(error);
+
+    // If it's not an authentication/token expiration error, reject normally
+    if (!isExpired) {
       return Promise.reject(error);
     }
 
-    // ── If a refresh is already in-flight, queue this request ──────────────
-    if (isRefreshing) {
-      return new Promise<AxiosResponse>((resolve, reject) => {
-        failedQueue.push({
-          resolve: (token) => {
-            setAuthHeader(originalRequest, token);
-            resolve(httpService(originalRequest));
-          },
-          reject,
-        });
-      });
+    // If request already retried and failed again, or has no config, navigate to auth
+    if (!originalRequest || originalRequest._retry) {
+      redirectToAuth();
+      return Promise.reject(error);
     }
 
-    // ── This is the first 401 — kick off the refresh ────────────────────────
     originalRequest._retry = true;
-    isRefreshing = true;
 
     try {
       const newToken = await refreshAccessToken();
-      processQueue(null, newToken);
       setAuthHeader(originalRequest, newToken);
-      return httpService(originalRequest); // retry the original request
+      return httpService(originalRequest); // retry original request
     } catch (refreshError) {
-      processQueue(refreshError, null);
-      clearSession();
-
-      // Redirect to login if user session has expired
-      if (typeof window !== "undefined") {
-        const currentPath = window.location.pathname;
-        if (!currentPath.startsWith("/auth")) {
-          window.location.href = "/auth";
-        }
-      }
+      redirectToAuth();
       return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
     }
   }
 );

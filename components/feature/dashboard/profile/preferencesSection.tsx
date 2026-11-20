@@ -28,7 +28,7 @@ export default function PreferencesSection({
                         <button
                             type="button"
                             onClick={onEditExamType}
-                            className="border border-[#2563EB] text-[#2563EB] text-xs font-semibold px-3 py-0.5 rounded-full hover:bg-blue-50 transition-colors cursor-pointer"
+                            className="border border-[#2563EB] text-[#2563EB] text-xs font-semibold px-3 py-0.5 rounded-full hover:bg-blue-50 transition-colors cursor-pointer relative z-20 select-none shrink-0"
                         >
                             Edit
                         </button>
@@ -55,7 +55,7 @@ export default function PreferencesSection({
                         <button
                             type="button"
                             onClick={onEditGoals}
-                            className="border border-[#2563EB] text-[#2563EB] text-xs font-semibold px-3 py-0.5 rounded-full hover:bg-blue-50 transition-colors cursor-pointer"
+                            className="border border-[#2563EB] text-[#2563EB] text-xs font-semibold px-3 py-0.5 rounded-full hover:bg-blue-50 transition-colors cursor-pointer relative z-20 select-none shrink-0"
                         >
                             Edit
                         </button>

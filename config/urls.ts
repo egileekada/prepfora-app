@@ -5,10 +5,16 @@ export const URLS = {
 
     LOGIN: "/auth/login",
     REGISTER: "/auth/register",
+    GOOGLE: "/auth/google",
     USER_PROFILE: "/auth/me",
+    UPLOAD: "/upload",
     OTP: "/auth/validate-otp",
     REFRESH_TOKEN: "/auth/refresh-token",
 
     UNIVERSITY: "/universities",
 
+    QUESTION: "/questions",
+    SUBJECT: "/subjects",
+    EXAMINATION: "/examination",
 };
+

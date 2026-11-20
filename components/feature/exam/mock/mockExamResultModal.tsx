@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useRouter } from "next/navigation";
 
 export interface MockExamResultData {
@@ -139,9 +138,8 @@ export default function MockExamResultModal({
                         Your Result:
                     </span>
                     <span
-                        className={`text-2xl sm:text-3xl font-extrabold ml-1 leading-none ${
-                            isPositive ? "text-[#10B981]" : "text-[#EF4444]"
-                        }`}
+                        className={`text-2xl sm:text-3xl font-extrabold ml-1 leading-none ${isPositive ? "text-[#10B981]" : "text-[#EF4444]"
+                            }`}
                     >
                         {result.score}
                     </span>
