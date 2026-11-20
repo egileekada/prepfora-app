@@ -31,7 +31,7 @@ export const INITIAL_USER_PROFILE: UserProfileData = {
     universityOfInterest: "Obafemi Awolowo University",
     walletBalance: 4000,
     currentBadge: "Current Badge",
-    avatarUrl: "/images/landing/hero1.png",
+    avatarUrl: "",
     examTypes: ["WAEC", "JAMB"],
     goals: [
         { exam: "WAEC", goal: "Get at least 5 A's" },

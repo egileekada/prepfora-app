@@ -68,7 +68,7 @@ export default function ExamSummaryModal({
                 if (e.target === e.currentTarget) onClose();
             }}
         >
-            <div className="bg-white rounded-3xl w-full max-w-[760px] p-6 sm:p-8 shadow-2xl relative flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-3xl w-full max-w-[480px] md:max-w-[760px] p-5 sm:p-8 shadow-2xl relative flex flex-col gap-5 sm:gap-6 max-h-[90vh] overflow-y-auto">
                 {/* Header with Title and Close Button */}
                 <div className="flex items-start justify-between">
                     <div>
@@ -125,8 +125,8 @@ export default function ExamSummaryModal({
                         </div>
                     </div>
 
-                    {/* Question Numbers Review Badges */}
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    {/* Question Numbers Review Badges (6 columns on mobile matching Image 1) */}
+                    <div className="grid grid-cols-6 sm:grid-cols-6 md:flex md:flex-wrap gap-2 pt-1 w-fit">
                         {results.map((res) => {
                             let badgeBg = "bg-[#10B981]";
                             if (res.status === "incorrect") badgeBg = "bg-[#EF4444]";
@@ -150,15 +150,15 @@ export default function ExamSummaryModal({
                         Practice Summary
                     </h3>
 
-                    {/* Emerald Banner */}
-                    <div className="w-full bg-[#52C498] rounded-3xl p-6 sm:p-7 flex flex-col md:flex-row items-stretch md:items-center gap-6 shadow-sm">
+                    {/* Emerald Banner matching Image 1 */}
+                    <div className="w-full bg-[#52C498] rounded-3xl p-5 sm:p-7 flex flex-col md:flex-row items-stretch md:items-center gap-5 sm:gap-6 shadow-sm">
                         {/* Left Inner Score Card */}
-                        <div className="w-full md:w-[220px] flex-shrink-0 bg-[#DCF3E8] rounded-2xl p-5 flex flex-col justify-between shadow-xs">
+                        <div className="w-full md:w-[220px] flex-shrink-0 bg-[#DCF3E8] rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xs">
                             <span className="font-bold text-sm sm:text-base text-neutral-900">
                                 {subjectTitle}
                             </span>
 
-                            <div className="my-3 flex items-baseline gap-1">
+                            <div className="my-2 sm:my-3 flex items-baseline gap-1">
                                 <span className="text-3xl sm:text-[34px] font-extrabold text-neutral-900 leading-none">
                                     {score}
                                 </span>
@@ -192,7 +192,7 @@ export default function ExamSummaryModal({
                         </div>
 
                         {/* Right Content: Focus Areas & Action */}
-                        <div className="flex-1 flex flex-col justify-between">
+                        <div className="flex-1 flex flex-col justify-between gap-4">
                             <div>
                                 <h4 className="font-bold text-sm sm:text-base text-neutral-900 mb-1.5">
                                     Focus Areas
@@ -201,7 +201,7 @@ export default function ExamSummaryModal({
                                     Based on your latest practice, we recommend focusing on these topics to improve your score.
                                 </p>
 
-                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                                     {focusAreas.map((topic, i) => (
                                         <div
                                             key={i}
@@ -214,12 +214,12 @@ export default function ExamSummaryModal({
                                 </div>
                             </div>
 
-                            {/* Action Button on Bottom Right */}
-                            <div className="flex justify-end">
+                            {/* Action Button */}
+                            <div className="flex justify-end pt-1">
                                 <button
                                     type="button"
                                     onClick={handlePracticeMore}
-                                    className="bg-[#2563EB] hover:bg-primary-250 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                                    className="w-full sm:w-auto bg-[#2563EB] hover:bg-primary-250 active:scale-[0.98] text-white font-semibold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer flex items-center justify-center"
                                 >
                                     Practice More Questions
                                 </button>

@@ -1,11 +1,22 @@
 
 export interface IAuth {
     email: string;
+    referral_code?: string | null;
+    affiliate_code?: string | null;
 }
 
 export interface IAuthOtp {
     email: string;
     otp: string;
+}
+
+export interface IGoogleAuthPayload {
+    id_token?: string | null;
+    email?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    referral_code?: string | null;
+    affiliate_code?: string | null;
 }
 
 export interface IAuthUser {
@@ -27,3 +38,41 @@ export interface IUniversity {
     type: string | null
     website: string
 }
+
+export interface IFileUploadResponse {
+    url: string;
+    key: string;
+    file_name: string;
+    content_type: string;
+    size: number;
+}
+
+export interface IUserProfile {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string;
+    state: string | null;
+    phone: string | null;
+    current_examination_date: string | null;
+    university: string | null;
+    examinations: string[] | null;
+    current_expectation: string | null;
+    prep_points: number | null;
+    best_score: number | null;
+    profile_picture?: string | null;
+    referral_code?: string | null;
+}
+
+export interface IUpdateUserPayload {
+    first_name?: string | null;
+    last_name?: string | null;
+    state?: string | null;
+    university?: string | null;
+    examinations?: string[] | null;
+    current_expectation?: string | null;
+    phone?: string | null;
+    current_examination_date?: string | null;
+    profile_picture?: string | null;
+    referral_code?: string | null;
+}

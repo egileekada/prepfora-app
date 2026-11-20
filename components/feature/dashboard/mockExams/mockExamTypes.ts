@@ -1,4 +1,4 @@
-export type ExamCurriculumCode = "JAMB" | "WAEC" | "POST UTME" | "NECO";
+export type ExamCurriculumCode = "jamb" | "waec" | "post_utme" | "neco";
 
 export interface ExamCurriculum {
     id: string;
@@ -52,7 +52,7 @@ export interface ExamAnalysisData {
 export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     {
         id: "jamb",
-        code: "JAMB",
+        code: "jamb",
         title: "JAMB",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Best Score",
@@ -64,7 +64,7 @@ export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     },
     {
         id: "waec",
-        code: "WAEC",
+        code: "waec",
         title: "WAEC",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Average Grade",
@@ -75,7 +75,7 @@ export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     },
     {
         id: "post-utme",
-        code: "POST UTME",
+        code: "post_utme",
         title: "POST UTME",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Best Score",
@@ -87,7 +87,7 @@ export const MOCK_CURRICULUMS: ExamCurriculum[] = [
     },
     {
         id: "neco",
-        code: "NECO",
+        code: "neco",
         title: "NECO",
         description: "Comprehensive computer-based simulation for all 4 subjects.",
         metricLabel: "Average Grade",
@@ -105,7 +105,7 @@ export const MOCK_HISTORY: ExamHistoryItem[] = [
         date: "June 24, 2026",
         score: "284",
         scoreColor: "green",
-        examCode: "JAMB",
+        examCode: "jamb",
     },
     {
         id: "hist-2",
@@ -113,7 +113,7 @@ export const MOCK_HISTORY: ExamHistoryItem[] = [
         date: "June 8, 2026",
         score: "A1",
         scoreColor: "green",
-        examCode: "WAEC",
+        examCode: "waec",
     },
     {
         id: "hist-3",
@@ -121,13 +121,13 @@ export const MOCK_HISTORY: ExamHistoryItem[] = [
         date: "May 20, 2026",
         score: "D",
         scoreColor: "red",
-        examCode: "NECO",
+        examCode: "neco",
     },
 ];
 
 export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = {
-    JAMB: {
-        examCode: "JAMB",
+    jamb: {
+        examCode: "jamb",
         examTitle: "JAMB Mock Exam Analysis",
         totalScore: 288,
         maxScore: 400,
@@ -189,8 +189,8 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
             },
         ],
     },
-    WAEC: {
-        examCode: "WAEC",
+    waec: {
+        examCode: "waec",
         examTitle: "WAEC Mock Exam Analysis",
         totalScore: 78,
         maxScore: 100,
@@ -235,8 +235,8 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
             },
         ],
     },
-    NECO: {
-        examCode: "NECO",
+    neco: {
+        examCode: "neco",
         examTitle: "NECO Mock Exam Analysis",
         totalScore: 65,
         maxScore: 100,
@@ -269,8 +269,8 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
             },
         ],
     },
-    "POST UTME": {
-        examCode: "POST UTME",
+    "post_utme": {
+        examCode: "post_utme",
         examTitle: "POST UTME Mock Exam Analysis",
         totalScore: 260,
         maxScore: 400,
@@ -304,3 +304,137 @@ export const MOCK_ANALYSIS_DATA: Record<ExamCurriculumCode, ExamAnalysisData> = 
         ],
     },
 };
+
+export type MockExamTypeLabel = "JAMB" | "WAEC" | "POST UTME" | "NECO";
+
+export interface MockSubjectSelection {
+    name: string;
+    displayName: string;
+}
+
+export interface MockSubjectBreakdownItem extends MockSubjectSelection {
+    questionCount: number;
+}
+
+export interface RealMockExamConfig {
+    code: ExamCurriculumCode;
+    label: MockExamTypeLabel;
+    requiredSubjectCount: number;
+    durationMinutes: number;
+    totalQuestions: number;
+    englishQuestionCount?: number;
+    otherSubjectQuestionCount: number;
+}
+
+export const REAL_MOCK_EXAM_CONFIGS: Record<ExamCurriculumCode, RealMockExamConfig> = {
+    jamb: {
+        code: "jamb",
+        label: "JAMB",
+        requiredSubjectCount: 4,
+        durationMinutes: 120,
+        totalQuestions: 180,
+        englishQuestionCount: 60,
+        otherSubjectQuestionCount: 40,
+    },
+    waec: {
+        code: "waec",
+        label: "WAEC",
+        requiredSubjectCount: 1,
+        durationMinutes: 60,
+        totalQuestions: 50,
+        otherSubjectQuestionCount: 50,
+    },
+    neco: {
+        code: "neco",
+        label: "NECO",
+        requiredSubjectCount: 1,
+        durationMinutes: 60,
+        totalQuestions: 60,
+        otherSubjectQuestionCount: 60,
+    },
+    post_utme: {
+        code: "post_utme",
+        label: "POST UTME",
+        requiredSubjectCount: 1,
+        durationMinutes: 45,
+        totalQuestions: 50,
+        otherSubjectQuestionCount: 50,
+    },
+};
+
+export function normalizeMockExamCode(exam: string): ExamCurriculumCode {
+    const clean = exam.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (clean === "waec") return "waec";
+    if (clean === "neco") return "neco";
+    if (clean.includes("post")) return "post_utme";
+    return "jamb";
+}
+
+export function formatMockSubjectLabel(slug: string): string {
+    return slug
+        .split(/[-_\s]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
+function isEnglishSubject(item: MockSubjectSelection): boolean {
+    const slug = item.name.trim().toLowerCase();
+    const label = item.displayName.trim().toLowerCase();
+    return slug === "english" || slug === "use_of_english" || label.includes("english");
+}
+
+export function getRealMockExamBreakdown(
+    exam: ExamCurriculumCode | MockExamTypeLabel | string,
+    selectedSubjects: MockSubjectSelection[]
+): {
+    config: RealMockExamConfig;
+    subjects: MockSubjectBreakdownItem[];
+    totalQuestions: number;
+    durationMinutes: number;
+} {
+    const code = normalizeMockExamCode(exam);
+    const config = REAL_MOCK_EXAM_CONFIGS[code];
+
+    if (selectedSubjects.length === 0) {
+        return {
+            config,
+            subjects: [],
+            totalQuestions: config.totalQuestions,
+            durationMinutes: config.durationMinutes,
+        };
+    }
+
+    if (code === "jamb") {
+        // Real UTME gives 60 questions for Use of English (or first selected subject if English isn't picked) and 40 for each remaining subject.
+        const englishIndex = selectedSubjects.findIndex(isEnglishSubject);
+        const primaryIndex = englishIndex >= 0 ? englishIndex : 0;
+        const subjects = selectedSubjects.map((item, idx) => ({
+            ...item,
+            questionCount:
+                idx === primaryIndex
+                    ? config.englishQuestionCount || 60
+                    : config.otherSubjectQuestionCount,
+        }));
+        const totalQuestions = subjects.reduce((sum, item) => sum + item.questionCount, 0);
+        return {
+            config,
+            subjects,
+            totalQuestions,
+            durationMinutes: config.durationMinutes,
+        };
+    }
+
+    const subjects = selectedSubjects.map((item) => ({
+        ...item,
+        questionCount: config.otherSubjectQuestionCount,
+    }));
+    const totalQuestions = subjects.reduce((sum, item) => sum + item.questionCount, 0);
+
+    return {
+        config,
+        subjects,
+        totalQuestions,
+        durationMinutes: config.durationMinutes,
+    };
+}

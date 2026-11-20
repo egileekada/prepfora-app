@@ -15,6 +15,7 @@ import { CustomText } from "../ui";
 import { usePathname, useRouter } from "next/navigation";
 import useUser from "@/hooks/useUser";
 import { textLimit } from "@/config/textlimit";
+import UserAvatar from "./userAvatar";
 
 export default function Sidebar() {
 
@@ -54,7 +55,7 @@ export default function Sidebar() {
     ];
 
     return (
-        <div className=" w-fit h-screen ">
+        <div className=" hidden lg:block w-fit h-screen shrink-0 ">
             <div className=" w-[263px] h-screen bg-primary-300 py-10 items-start flex flex-col px-6 ">
                 <div className=" ">
                     <Logo color="white" width={150} />
@@ -84,12 +85,13 @@ export default function Sidebar() {
                     }`}
                 >
                     <div className="w-fit">
-                        <div className="border border-white rounded-full w-10 h-10 bg-white overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src="/images/landing/hero1.png"
-                                alt="Avatar"
-                                className="w-full h-full object-cover object-top"
+                        <div className="border border-white rounded-full w-10 h-10 bg-white overflow-hidden flex items-center justify-center shrink-0">
+                            <UserAvatar
+                                src={data?.data?.profile_picture}
+                                firstName={data?.data?.first_name}
+                                lastName={data?.data?.last_name}
+                                className="w-full h-full"
+                                textClassName="text-sm font-bold"
                             />
                         </div>
                     </div>

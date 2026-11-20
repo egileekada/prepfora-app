@@ -7,6 +7,6 @@ export interface Pagination {
 export interface PaginatedResponse<T> {
     success: boolean;
     message: string;
-    data: T[];
+    data: T;
     pagination: Pagination;
 }
